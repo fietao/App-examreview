@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-OLLAMA_MODEL  = "qwen2.5:14b"       # change to any model you have pulled
+OLLAMA_MODEL  = "qwen2.5:1.5b"         # switched to 1.5B for instant speed on GPU
 OLLAMA_URL    = "http://localhost:11434/api/generate"
 SERVER_PORT   = 5000
 SAVE_FILE     = "checkpoints.json"  # saved next to this script
@@ -299,15 +299,45 @@ FEEDBACK: [your brief feedback]"""
     try:
         resp = requests.post(
             OLLAMA_URL,
-            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+            json={
+                "model": OLLAMA_MODEL, 
+                "prompt": prompt, 
+                "stream": False,
+                "options": {
+                    "num_predict": 128,  # Stop after grading to save time
+                    "temperature": 0     # Faster, deterministic output
+                }
+            },
             timeout=60,
         )
         resp.raise_for_status()
         text = resp.json().get("response", "")
+        
+        # Clean up thinking tags for reasoning models
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+        
         verdict_match = re.search(r"VERDICT:\s*(CORRECT|PARTIAL|INCORRECT)", text, re.IGNORECASE)
         feedback_match = re.search(r"FEEDBACK:\s*(.+)", text, re.IGNORECASE | re.DOTALL)
-        verdict = verdict_match.group(1).upper() if verdict_match else "INCORRECT"
-        feedback = feedback_match.group(1).strip() if feedback_match else text.strip()
+        
+        if verdict_match:
+            verdict = verdict_match.group(1).upper()
+        else:
+            # Fallback: look for keywords in the whole text
+            if "CORRECT" in text.upper(): verdict = "CORRECT"
+            elif "PARTIAL" in text.upper(): verdict = "PARTIAL"
+            else: verdict = "INCORRECT"
+            
+        if feedback_match:
+            feedback = feedback_match.group(1).strip()
+        else:
+            # If no FEEDBACK label, use the text after VERDICT if possible, else the whole text
+            if verdict_match:
+                feedback = text[verdict_match.end():].strip()
+                # Remove common AI prefixes if they leaked
+                feedback = re.sub(r"^[:\s,]*FEEDBACK[:\s]*", "", feedback, flags=re.IGNORECASE).strip()
+            else:
+                feedback = text.strip()
+                
         return {"verdict": verdict, "feedback": feedback}
     except Exception as e:
         return {"verdict": "ERROR", "feedback": f"Ollama error: {str(e)}"}
