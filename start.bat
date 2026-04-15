@@ -16,11 +16,26 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
-:: Check for Ollama (optional warning)
+:: Check for Ollama and pull model
 ollama --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [WARNING] Ollama not found. AI grading will not work.
     echo Please install it from https://ollama.com/
+    echo.
+) else (
+    echo Checking if Ollama model is available...
+    ollama list 2>nul | findstr /i "qwen2.5:1.5b" >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo Pulling model qwen2.5:1.5b — this may take a minute on first run...
+        ollama pull qwen2.5:1.5b
+        if %errorlevel% neq 0 (
+            echo [WARNING] Failed to pull model. Make sure Ollama is running: ollama serve
+        ) else (
+            echo Model ready!
+        )
+    ) else (
+        echo Model qwen2.5:1.5b is ready.
+    )
     echo.
 )
 

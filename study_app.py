@@ -272,29 +272,53 @@ SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), SAVE_FILE)
 def load_saves():
     if os.path.exists(SAVE_PATH):
         with open(SAVE_PATH, "r") as f:
-            return json.load(f)
-    return {}
+            data = json.load(f)
+            # Migrate old format to new
+            if not isinstance(data, dict) or 'sessions' not in data:
+                return {"sessions": []}
+            return data
+    return {"sessions": []}
 
 
 def write_saves(data):
+    # Ensure sessions array exists
+    if not isinstance(data, dict):
+        data = {"sessions": []}
+    if "sessions" not in data:
+        data["sessions"] = []
+    
     with open(SAVE_PATH, "w") as f:
         json.dump(data, f, indent=2)
 
 
 def grade_with_ollama(question: str, correct_answer: str, student_answer: str) -> dict:
-    prompt = f"""You are grading a Java programming exam question. Be brief and direct.
+    prompt = f"""You are a rigorous Java programming instructor grading exam answers.
 
 QUESTION: {question}
 
-CORRECT ANSWER: {correct_answer}
+CORRECT/EXPECTED ANSWER: {correct_answer}
 
 STUDENT'S ANSWER: {student_answer}
 
-Grade as CORRECT, PARTIAL, or INCORRECT.
-Give 1-2 sentences of feedback explaining what the student got right or wrong.
-Format your response exactly like this:
+GRADING CRITERIA:
+- CORRECT: Student demonstrates 85%+ understanding. Answer is essentially complete, accurate, and shows proper conceptual grasp. Minor wording differences are OK.
+- PARTIAL: Student demonstrates 50-84% understanding. Answer shows partial knowledge but has gaps, missing key concepts, or logical errors. Fundamentals present but incomplete.
+- INCORRECT: Student demonstrates <50% understanding. Answer is mostly wrong, missing core concepts, or fundamentally misunderstands the topic.
+
+Evaluate deeply. Check if the student:
+1. Identifies key concepts correctly
+2. Uses proper terminology  
+3. Shows logical reasoning
+4. Avoids fundamental misconceptions
+5. Covers essential points needed to fully answer
+
+Be STRICT. Don't give CORRECT unless truly 85%+ complete and accurate.
+
+Format your response EXACTLY like this (4 lines total):
 VERDICT: [CORRECT/PARTIAL/INCORRECT]
-FEEDBACK: [your brief feedback]"""
+KEY_STRENGTHS: [1-2 things student got right]
+KEY_GAPS: [main missing concepts or errors]
+FEEDBACK: [brief guidance on how to improve]"""
 
     try:
         resp = requests.post(
@@ -304,8 +328,8 @@ FEEDBACK: [your brief feedback]"""
                 "prompt": prompt, 
                 "stream": False,
                 "options": {
-                    "num_predict": 128,  # Stop after grading to save time
-                    "temperature": 0     # Faster, deterministic output
+                    "num_predict": 200,  # More space for structured output
+                    "temperature": 0.1   # Low temp for consistency
                 }
             },
             timeout=60,
@@ -316,29 +340,46 @@ FEEDBACK: [your brief feedback]"""
         # Clean up thinking tags for reasoning models
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
         
+        # Parse structured output
         verdict_match = re.search(r"VERDICT:\s*(CORRECT|PARTIAL|INCORRECT)", text, re.IGNORECASE)
-        feedback_match = re.search(r"FEEDBACK:\s*(.+)", text, re.IGNORECASE | re.DOTALL)
+        strengths_match = re.search(r"KEY_STRENGTHS:\s*(.+?)(?=KEY_GAPS:|$)", text, re.IGNORECASE | re.DOTALL)
+        gaps_match = re.search(r"KEY_GAPS:\s*(.+?)(?=FEEDBACK:|$)", text, re.IGNORECASE | re.DOTALL)
+        feedback_match = re.search(r"FEEDBACK:\s*(.+?)$", text, re.IGNORECASE | re.DOTALL)
         
         if verdict_match:
             verdict = verdict_match.group(1).upper()
         else:
-            # Fallback: look for keywords in the whole text
+            # Fallback
             if "CORRECT" in text.upper(): verdict = "CORRECT"
             elif "PARTIAL" in text.upper(): verdict = "PARTIAL"
             else: verdict = "INCORRECT"
-            
-        if feedback_match:
-            feedback = feedback_match.group(1).strip()
-        else:
-            # If no FEEDBACK label, use the text after VERDICT if possible, else the whole text
-            if verdict_match:
-                feedback = text[verdict_match.end():].strip()
-                # Remove common AI prefixes if they leaked
-                feedback = re.sub(r"^[:\s,]*FEEDBACK[:\s]*", "", feedback, flags=re.IGNORECASE).strip()
-            else:
-                feedback = text.strip()
-                
-        return {"verdict": verdict, "feedback": feedback}
+        
+        # Extract and clean components
+        strengths = strengths_match.group(1).strip() if strengths_match else ""
+        gaps = gaps_match.group(1).strip() if gaps_match else ""
+        feedback = feedback_match.group(1).strip() if feedback_match else ""
+        
+        # Remove common noise patterns
+        for pattern in [r"^[-•*]\s*", r"^[a-z]\)", r"^[IVX]+\.\s"]:
+            strengths = re.sub(pattern, "", strengths, flags=re.MULTILINE)
+            gaps = re.sub(pattern, "", gaps, flags=re.MULTILINE)
+            feedback = re.sub(pattern, "", feedback, flags=re.MULTILINE)
+        
+        # Truncate if too long
+        strengths = strengths[:120]
+        gaps = gaps[:150]
+        feedback = feedback[:180]
+        
+        # Build structured feedback message
+        feedback_output = ""
+        if verdict == "CORRECT":
+            feedback_output = f"✓ Excellent! {feedback}" if feedback else "✓ Your understanding is solid."
+        elif verdict == "PARTIAL":
+            feedback_output = f"◐ You're on the right track, but there are gaps:\n• Strengths: {strengths}\n• Missing: {gaps}\n• Next: {feedback}"
+        else:  # INCORRECT
+            feedback_output = f"✗ This needs more work:\n• Is missing: {gaps if gaps else 'key concepts'}\n• Review and try again: {feedback if feedback else 'revisit the material'}"
+        
+        return {"verdict": verdict, "feedback": feedback_output}
     except Exception as e:
         return {"verdict": "ERROR", "feedback": f"Ollama error: {str(e)}"}
 
@@ -381,19 +422,41 @@ button:hover{background:#f5f5f5}button:active{transform:scale(0.98)}
 .btn-wrong{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
 textarea{width:100%;min-height:120px;padding:10px 12px;font-family:'Courier New',monospace;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;resize:vertical;line-height:1.5}
 textarea:focus{outline:none;border-color:#999}
-.feedback-box{padding:12px 14px;border-radius:8px;margin:12px 0;font-size:14px;line-height:1.6}
-.feedback-success{background:#f0fdf4;border:1px solid #86efac;color:#166534}
-.feedback-warning{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
-.feedback-danger{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b}
-.answer-reveal{background:#f9f9f9;border:1px solid #e5e5e5;border-radius:8px;padding:12px 14px;margin:8px 0;font-size:13px;font-family:'Courier New',monospace;line-height:1.6;white-space:pre-wrap}
+.feedback-box{padding:14px 16px;border-radius:10px;margin:14px 0;font-size:14px;line-height:1.6;border-left:4px solid}
+.feedback-success{background:#f0fdf4;border-color:#22c55e;color:#166534}
+.feedback-warning{background:#fffbeb;border-color:#eab308;color:#92400e}
+.feedback-danger{background:#fef2f2;border-color:#ef4444;color:#991b1b}
+.feedback-box strong{display:block;font-size:15px;margin-bottom:4px}
+.answer-reveal{background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:12px 14px;margin:10px 0;font-size:13px;font-family:'Courier New',monospace;line-height:1.6;white-space:pre-wrap;color:#333;max-height:200px;overflow-y:auto}
 .score-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
 .score-badge{font-size:13px;color:#666}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:1.5rem}
 .stat-card{background:#f9f9f9;border-radius:8px;padding:1rem;text-align:center}
 .stat-num{font-size:28px;font-weight:500}
 .stat-label{font-size:12px;color:#999;margin-top:2px}
-.save-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0f0}
-.save-row:last-child{border-bottom:none}
+.session-card{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden}
+.session-card:hover{border-color:#93c5fd;background:#f8faff;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+.session-card.completed{border-left:4px solid #22c55e}
+.session-card.incomplete{border-left:4px solid #f59e0b}
+.session-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.session-title{font-size:14px;font-weight:600;color:#1a1a1a}
+.session-badge{font-size:11px;padding:3px 8px;border-radius:99px;background:#f0f0f0;color:#666;display:inline-block}
+.session-badge.completed{background:#dcfce7;color:#166534}
+.session-badge.incomplete{background:#fef3c7;color:#92400e}
+.session-meta{font-size:12px;color:#999;display:flex;gap:12px;margin-bottom:8px}
+.session-score{font-size:20px;font-weight:700;color:#1d4ed8}
+.session-score.low{color:#dc2626}
+.session-score.medium{color:#f59e0b}
+.session-score.high{color:#16a34a}
+.session-info{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.session-stat{font-size:12px;padding:6px;background:#f9f9f9;border-radius:6px}
+.session-stat-label{color:#999;font-size:11px}
+.session-stat-value{font-weight:600;color:#333;margin-top:2px}
+.weak-areas{font-size:12px;color:#991b1b;margin-top:8px;padding-top:8px;border-top:1px solid #f0f0f0}
+.weak-areas-title{color:#991b1b;font-size:11px;font-weight:600;margin-bottom:3px}
+.timeline-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#93c5fd;margin-right:6px}
+.session-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0}
+.session-actions button{flex:1;font-size:12px;padding:6px 10px}
 .row{display:flex;gap:10px;align-items:center}.spacer{flex:1}
 .tag{font-size:11px;padding:2px 8px;border-radius:99px;background:#f0f0f0;color:#666;border:1px solid #e5e5e5;display:inline-block;margin-right:6px}
 .wrong-list{max-height:300px;overflow-y:auto}
@@ -404,16 +467,125 @@ textarea:focus{outline:none;border-color:#999}
 @keyframes spin{to{transform:rotate(360deg)}}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#1a1a1a;color:#fff;padding:8px 16px;border-radius:99px;font-size:13px;transition:transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
 .toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── Mode selector cards on home ── */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}
+.mode-card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:1.25rem;cursor:pointer;transition:all 0.15s;text-align:center}
+.mode-card:hover{border-color:#93c5fd;background:#f8faff}
+.mode-card.full-width{grid-column:1/-1}
+.mode-icon{font-size:28px;margin-bottom:8px}
+.mode-title{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:4px}
+.mode-desc{font-size:12px;color:#999;line-height:1.4}
+
+/* ── Study material styles ── */
+.study-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.5rem}
+.study-nav button.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.study-section{margin-bottom:2rem}
+.study-topic{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.study-topic summary{font-size:14px;font-weight:500;cursor:pointer;color:#1a1a1a;padding:2px 0}
+.study-topic summary:hover{color:#1d4ed8}
+.study-topic .study-content{margin-top:10px;font-size:13px;line-height:1.7;color:#444}
+.study-topic .study-content p{margin-bottom:8px}
+.study-topic .study-content code{background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:12px}
+.study-topic .study-content pre{background:#f9f9f9;border:1px solid #e5e5e5;border-radius:6px;padding:10px 12px;font-size:12px;overflow-x:auto;margin:8px 0;line-height:1.5}
+.study-key{display:inline-block;background:#eff6ff;color:#1d4ed8;font-size:11px;padding:2px 8px;border-radius:4px;margin-right:4px;margin-bottom:4px}
+
+/* ── Unit picker ── */
+.unit-card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:1rem 1.25rem;margin-bottom:10px;cursor:pointer;transition:all 0.15s;display:flex;justify-content:space-between;align-items:center}
+.unit-card:hover{border-color:#93c5fd;background:#f8faff}
+.unit-card .unit-info .unit-title{font-size:15px;font-weight:500}
+.unit-card .unit-info .unit-count{font-size:12px;color:#999;margin-top:2px}
+.unit-card .unit-arrow{color:#ccc;font-size:18px}
 </style>
 </head>
 <body>
 <div id="toast" class="toast">Checkpoint saved!</div>
 <div class="app">
 
+  <!-- ════════════════════════════════════════════════════════════════════
+       SCREEN: HOME — Main menu with 4 modes
+       ════════════════════════════════════════════════════════════════════ -->
   <div id="screen-home" class="screen active">
     <h1>Java Study App</h1>
     <p class="subtitle">Chapters 6 – 11 &nbsp;·&nbsp; AI graded by Ollama &nbsp;·&nbsp; Checkpoints saved locally</p>
     <div class="model-badge" id="model-badge">Loading model info...</div>
+
+    <div class="mode-grid">
+      <div class="mode-card" onclick="showScreen('screen-study-pick')">
+        <div class="mode-icon">&#128214;</div>
+        <div class="mode-title">Study Material</div>
+        <div class="mode-desc">Read and learn unit by unit before quizzing</div>
+      </div>
+      <div class="mode-card" onclick="showScreen('screen-unit-pick')">
+        <div class="mode-icon">&#128218;</div>
+        <div class="mode-title">Unit Quiz</div>
+        <div class="mode-desc">Quiz one chapter at a time</div>
+      </div>
+      <div class="mode-card" onclick="showScreen('screen-custom')">
+        <div class="mode-icon">&#9881;</div>
+        <div class="mode-title">Custom Quiz</div>
+        <div class="mode-desc">Pick your own chapters &amp; question types</div>
+      </div>
+      <div class="mode-card" onclick="startAllUnits()">
+        <div class="mode-icon">&#127942;</div>
+        <div class="mode-title">All Units Combined</div>
+        <div class="mode-desc">Test yourself on every chapter at once</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+        <h3 style="margin-bottom:0">📊 Session History</h3>
+        <button onclick="resetAllProgress()" style="font-size:11px; color:#991b1b; border:none; background:none; padding:0; cursor:pointer">Clear All</button>
+      </div>
+      <div id="session-timeline" style="max-height: 320px; overflow-y: auto;"></div>
+      <div id="empty-state" style="text-align: center; padding: 20px; color: #999;">
+        <div style="font-size: 32px; margin-bottom: 8px;">📝</div>
+        <div style="font-size: 13px;">No sessions yet. Start a quiz to begin tracking progress!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SCREEN: STUDY MATERIAL — Pick a chapter to study
+       ════════════════════════════════════════════════════════════════════ -->
+  <div id="screen-study-pick" class="screen">
+    <button onclick="showScreen('screen-home')" style="font-size:13px;color:#999;border:none;background:none;padding:0;margin-bottom:1rem;cursor:pointer">&larr; Back to home</button>
+    <h2>Study Material</h2>
+    <p class="subtitle">Choose a chapter to review key concepts before quizzing</p>
+    <div id="study-unit-list"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SCREEN: STUDY CONTENT — Read material for one chapter
+       ════════════════════════════════════════════════════════════════════ -->
+  <div id="screen-study" class="screen">
+    <button onclick="showScreen('screen-study-pick')" style="font-size:13px;color:#999;border:none;background:none;padding:0;margin-bottom:1rem;cursor:pointer">&larr; Back to chapters</button>
+    <h2 id="study-title">Chapter X</h2>
+    <div id="study-body"></div>
+    <div style="margin-top:1.5rem;display:flex;gap:10px">
+      <button class="btn-primary" onclick="startUnitFromStudy()">Quiz This Chapter</button>
+      <button onclick="showScreen('screen-study-pick')">Study Another Chapter</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SCREEN: UNIT QUIZ — Pick one chapter to quiz
+       ════════════════════════════════════════════════════════════════════ -->
+  <div id="screen-unit-pick" class="screen">
+    <button onclick="showScreen('screen-home')" style="font-size:13px;color:#999;border:none;background:none;padding:0;margin-bottom:1rem;cursor:pointer">&larr; Back to home</button>
+    <h2>Unit Quiz</h2>
+    <p class="subtitle">Pick a chapter to quiz — all question types included</p>
+    <div id="unit-list"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SCREEN: CUSTOM QUIZ — Pick chapters + question types
+       ════════════════════════════════════════════════════════════════════ -->
+  <div id="screen-custom" class="screen">
+    <button onclick="showScreen('screen-home')" style="font-size:13px;color:#999;border:none;background:none;padding:0;margin-bottom:1rem;cursor:pointer">&larr; Back to home</button>
+    <h2>Custom Quiz</h2>
+    <p class="subtitle">Build your own quiz by selecting chapters and question types</p>
 
     <div class="card">
       <h3>Select chapters</h3>
@@ -438,24 +610,14 @@ textarea:focus{outline:none;border-color:#999}
       </label>
     </div>
 
-    <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
-        <h3 style="margin-bottom:0">Checkpoints</h3>
-        <button onclick="resetAllProgress()" style="font-size:11px; color:#991b1b; border:none; background:none; padding:0; cursor:pointer">Reset All</button>
-      </div>
-      <div id="last-session-card" style="display:none; margin-bottom: 12px; border: 1px solid #93c5fd; background: #eff6ff; padding: 12px; border-radius: 12px;">
-          <div style="font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 4px;">Last Session Found</div>
-          <div id="last-session-info" style="font-size: 12px; color: #3b82f6; margin-bottom: 8px;"></div>
-          <button class="btn-primary" onclick="resumeLastSession()" style="background:#1e40af; border-color:#1e40af; font-size: 12px; padding: 4px 12px;">Continue Progress</button>
-      </div>
-      <div id="save-slots"></div>
-    </div>
-
     <div class="row" style="margin-top:1rem">
-      <button class="btn-primary" onclick="startSession()">Start new session</button>
+      <button class="btn-primary" onclick="startSession()">Start Custom Quiz</button>
     </div>
   </div>
 
+  <!-- ════════════════════════════════════════════════════════════════════
+       SCREEN: QUIZ — Shared quiz screen for all modes
+       ════════════════════════════════════════════════════════════════════ -->
   <div id="screen-quiz" class="screen">
     <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     <div class="score-row">
@@ -472,15 +634,18 @@ textarea:focus{outline:none;border-color:#999}
       <div style="display:flex; gap: 8px; align-items:center;">
           <button onclick="goHome()" style="font-size:13px;color:#999;border:none;background:none;padding:4px 0">Save &amp; exit</button>
           <span style="color:#ddd">|</span>
-          <button onclick="manualSave()" style="font-size:13px;color:#555;border:none;background:none;padding:4px 0">Save Checkpoint</button>
-          <span style="color:#ddd">|</span>
           <button onclick="restartCurrentSession()" style="font-size:13px;color:#991b1b;border:none;background:none;padding:4px 0">Restart</button>
+          <span style="color:#ddd">|</span>
+          <span style="font-size:12px;color:#999;display:flex;align-items:center;gap:4px">💾 <span id="auto-save-indicator">Auto-saving...</span></span>
       </div>
       <div class="spacer"></div>
-      <button class="btn-primary" id="btn-next" onclick="nextQuestion()" style="display:none">Next →</button>
+      <button class="btn-primary" id="btn-next" onclick="nextQuestion()" style="display:none">Next &rarr;</button>
     </div>
   </div>
 
+  <!-- ════════════════════════════════════════════════════════════════════
+       SCREEN: END — Session results
+       ════════════════════════════════════════════════════════════════════ -->
   <div id="screen-end" class="screen">
     <h2>Session complete</h2>
     <div class="stat-grid">
@@ -502,14 +667,105 @@ textarea:focus{outline:none;border-color:#999}
 <script>
 const QUESTIONS = __QUESTIONS__;
 
-let session = {questions:[], idx:0, correct:0, wrongIds:[], total:0, qIds:[]};
+/* ════════════════════════════════════════════════════════════════════════
+   CHAPTER METADATA — titles & study material for each unit
+   ════════════════════════════════════════════════════════════════════════ */
+const CHAPTER_INFO = {
+  6: {
+    title: "Ch 6 — Classes & Objects (Intro)",
+    topics: [
+      { heading: "Classes vs Objects", keys: ["class","object","instance","new"], notes: "A <strong>class</strong> is the blueprint that defines fields and methods. An <strong>object</strong> (instance) is a concrete thing created from that blueprint using <code>new</code>. Example: <code>Dog myDog = new Dog();</code>" },
+      { heading: "Fields & Encapsulation", keys: ["field","private","encapsulation"], notes: "Fields (instance variables) store the data/state of an object. They should be declared <code>private</code> to enforce <strong>encapsulation</strong> — outside code can't accidentally corrupt the data." },
+      { heading: "Accessors & Mutators", keys: ["getter","setter","accessor","mutator"], notes: "An <strong>accessor</strong> (getter) retrieves a field's value without changing it. A <strong>mutator</strong> (setter) modifies the field's value. Example: <code>getName()</code> is an accessor; <code>setName(String n)</code> is a mutator." },
+      { heading: "Constructors", keys: ["constructor","default constructor","overloading"], notes: "A <strong>constructor</strong> is a method automatically called when <code>new</code> creates an object. It shares the class name and has <strong>no return type</strong>. Java provides a default no-arg constructor only if you haven't written any constructor. You can overload constructors with different parameter lists." },
+      { heading: "The 'this' Keyword & Shadowing", keys: ["this","shadowing"], notes: "When a local variable has the same name as a field, it <strong>shadows</strong> the field. Use <code>this.fieldName</code> to refer to the field." },
+      { heading: "Method Overloading & Binding", keys: ["overloading","binding","parameter list"], notes: "Two or more methods can share the same name if their <strong>parameter lists differ</strong>. Return type alone is not enough. The JVM matches method calls to methods via <strong>binding</strong>." },
+      { heading: "UML & Responsibilities", keys: ["UML","responsibilities","CRC"], notes: "A class's responsibilities include what it <strong>knows</strong> (fields) and what it <strong>does</strong> (methods). Identify classes from <strong>nouns</strong> in the problem description, and methods from <strong>verbs</strong>." }
+    ]
+  },
+  7: {
+    title: "Ch 7 — Arrays & ArrayList",
+    topics: [
+      { heading: "Array Basics", keys: ["array","size declarator","subscript","index"], notes: "An array's <strong>size declarator</strong> sets how many elements it holds at creation (e.g. <code>new int[10]</code>). A <strong>subscript</strong> (index) accesses individual elements. Arrays are <strong>zero-indexed</strong>: first = 0, last = length - 1." },
+      { heading: "Bounds Checking", keys: ["ArrayIndexOutOfBoundsException","runtime"], notes: "Java checks array bounds at <strong>runtime</strong>, not compile time. Accessing an invalid index throws <code>ArrayIndexOutOfBoundsException</code>." },
+      { heading: "Array Length & Initialization", keys: [".length","initialization list"], notes: "Every array has a <code>.length</code> field (no parentheses). You can initialize inline: <code>int[] arr = {5, 3, 8};</code> — order is preserved." },
+      { heading: "Passing Arrays to Methods", keys: ["pass by reference","copy"], notes: "Arrays are passed <strong>by reference</strong> — the method gets the address of the same array and can modify the original. To copy array contents, you must loop element by element." },
+      { heading: "Searching: Sequential & Binary", keys: ["sequential search","binary search"], notes: "<strong>Sequential search</strong> checks each element from the start. <strong>Binary search</strong> requires a sorted array and cuts the search space in half each step — much faster for large arrays." },
+      { heading: "Two-Dimensional Arrays", keys: ["2D array","rows","columns"], notes: "First dimension = <strong>rows</strong>, second = <strong>columns</strong>. Example: <code>int[5][3]</code> = 5 rows, 3 columns. Use nested loops to process all elements." },
+      { heading: "ArrayList", keys: ["ArrayList","add","remove","size"], notes: "<code>ArrayList</code> automatically resizes. Use <code>.add()</code> to insert, <code>.remove()</code> to delete, <code>.size()</code> (method, not field) to count. Requires <code>import java.util.ArrayList</code>." }
+    ]
+  },
+  8: {
+    title: "Ch 8 — Classes & Objects (Advanced)",
+    topics: [
+      { heading: "Static Members", keys: ["static","class method","class variable"], notes: "<strong>Static</strong> members belong to the class, not any instance. A static method has <strong>no 'this' reference</strong> and cannot access non-static fields directly, ever." },
+      { heading: "Passing Objects to Methods", keys: ["reference","pass by reference"], notes: "When an object is passed to a method, the <strong>reference</strong> (memory address) is passed. The method can read and modify the original object's state." },
+      { heading: "toString & Method Chaining", keys: ["toString","chaining"], notes: "Java calls <code>toString()</code> automatically when concatenating an object with a string. <strong>Method chaining</strong> calls the next method directly on the return value: <code>keyboard.nextLine().toUpperCase()</code>." },
+      { heading: "Aggregation (Has-A)", keys: ["aggregation","composition","has-a"], notes: "Making an instance of one class a field in another class is <strong>aggregation</strong>. It models a 'has-a' relationship (e.g. a Car has-a Engine)." },
+      { heading: "Immutable Classes", keys: ["immutable","final","mutable"], notes: "An <strong>immutable</strong> class has no setters, all fields are <code>private</code> and <code>final</code>. Note: <code>final</code> on a reference only prevents reassigning the reference — the object's internal fields can still change." },
+      { heading: "Enums", keys: ["enum","ordinal","constants"], notes: "Enums are <strong>full-blown class types</strong> with methods and fields. <code>ordinal()</code> returns the zero-based position. Fully qualified: <code>Seasons.FALL</code>. Inside switch cases, use <strong>unqualified</strong> names." },
+      { heading: "Garbage Collection", keys: ["garbage collection","JVM","memory"], notes: "The JVM's <strong>garbage collector</strong> automatically frees memory for objects that are no longer referenced." },
+      { heading: "CRC Cards", keys: ["CRC","responsibilities","collaborations"], notes: "CRC = <strong>Class, Responsibilities, Collaborations</strong>. A design tool for identifying what each class knows, does, and who it works with." }
+    ]
+  },
+  9: {
+    title: "Ch 9 — Strings & Wrapper Classes",
+    topics: [
+      { heading: "Character Class", keys: ["Character","isDigit","isLetter","toUpperCase"], notes: "The <code>Character</code> wrapper class has static methods for testing single chars: <code>isDigit()</code>, <code>isLetter()</code>, <code>toUpperCase()</code>. These accept a single <code>char</code>, not a whole String." },
+      { heading: "String Methods", keys: ["isEmpty","isBlank","contains","startsWith","endsWith"], notes: "<code>isEmpty()</code> checks if length == 0. <code>isBlank()</code> is true for empty OR whitespace-only strings. <code>contains()</code>, <code>startsWith()</code>, <code>endsWith()</code> are case-sensitive." },
+      { heading: "String Manipulation", keys: ["concat","replace","split","repeat","valueOf"], notes: "<code>concat()</code> appends strings. <code>replace()</code> replaces all occurrences of a char or substring. <code>split(regex)</code> returns a <code>String[]</code> of tokens. <code>repeat(n)</code> repeats the string n times. <code>String.valueOf()</code> converts primitives to strings." },
+      { heading: "StringBuilder", keys: ["StringBuilder","mutable","setCharAt","deleteCharAt"], notes: "<code>StringBuilder</code> is <strong>mutable</strong> — modifies the same object in place. Default capacity is 16 chars. Use <code>setCharAt()</code> to replace and <code>deleteCharAt()</code> to remove. Cannot assign a String literal directly — use the constructor." },
+      { heading: "Tokenizing & Splitting", keys: ["delimiter","split","tokens"], notes: 'A <strong>delimiter</strong> separates tokens in a string. <code>str.split(";")</code> returns a <code>String[]</code>. Use regex character classes for multiple delimiters: <code>str.split("[>:]")</code>.' },
+      { heading: "Wrapper Classes & Parsing", keys: ["Integer","parseInt","Double","parseDouble","MIN_VALUE","MAX_VALUE"], notes: '<code>Integer.parseInt("42")</code> returns int 42. Throws <code>NumberFormatException</code> for invalid input. Each wrapper has <code>MIN_VALUE</code> and <code>MAX_VALUE</code> constants.' }
+    ]
+  },
+  10: {
+    title: "Ch 10 — Inheritance & Polymorphism",
+    topics: [
+      { heading: "Inheritance Basics", keys: ["extends","superclass","subclass","is-a"], notes: "Use <code>extends</code> to inherit. The <strong>superclass</strong> is the general class, the <strong>subclass</strong> is specialized. Subclasses inherit all accessible members but <strong>not private</strong> ones or constructors." },
+      { heading: "super Keyword", keys: ["super","constructor chain"], notes: "<code>super()</code> calls the parent constructor and <strong>must be the first statement</strong> in the subclass constructor. If omitted, Java auto-inserts <code>super()</code> (no-arg). The superclass constructor always executes <strong>before</strong> the subclass constructor." },
+      { heading: "Overriding vs Overloading", keys: ["override","overload","@Override"], notes: "<strong>Overriding</strong>: same name AND same parameter list — replaces superclass behavior. <strong>Overloading</strong>: same name, different parameters — adds a new version. <code>final</code> methods <strong>cannot</strong> be overridden." },
+      { heading: "Protected Access", keys: ["protected","package access"], notes: "<code>protected</code> members are accessible within the same package AND by subclasses anywhere. Package (default) access is same package only." },
+      { heading: "Polymorphism & Dynamic Binding", keys: ["polymorphism","dynamic binding","instanceof"], notes: "A superclass reference can point to a subclass object: <code>Animal a = new Dog();</code>. The correct overridden method is called at <strong>runtime</strong> (dynamic binding). Use <code>instanceof</code> to check the actual object type." },
+      { heading: "Abstract Classes & Methods", keys: ["abstract","cannot instantiate"], notes: "A class with any <code>abstract</code> method must be declared abstract. Abstract classes <strong>cannot be instantiated</strong>. Concrete subclasses must override all abstract methods." },
+      { heading: "Interfaces", keys: ["interface","implements","functional interface"], notes: "Interfaces define a contract. Fields are <code>public static final</code>. A class can implement <strong>multiple</strong> interfaces. Methods are abstract by default unless <code>default</code> or <code>static</code>." },
+      { heading: "Lambda Expressions", keys: ["lambda","functional interface","arrow"], notes: "A <strong>functional interface</strong> has exactly one abstract method. Lambdas provide concise inline implementations: <code>(x) -> x / 2</code>. Can be void, have zero or multiple parameters." },
+      { heading: "Anonymous Inner Classes", keys: ["anonymous","inner class","new"], notes: "An anonymous inner class must either implement an interface or extend a superclass. Created with <code>new InterfaceName() { /* body */ }</code>." }
+    ]
+  },
+  11: {
+    title: "Ch 11 — Exceptions & I/O",
+    topics: [
+      { heading: "Exception Basics", keys: ["throw","catch","try","exception handler"], notes: "When an error occurs, Java <strong>throws</strong> an exception object. Code in a <code>try</code> block is protected — if it throws, the matching <code>catch</code> block handles it. If unhandled, the default handler prints a stack trace and terminates." },
+      { heading: "Exception Hierarchy", keys: ["Throwable","Exception","Error","RuntimeException"], notes: "All exceptions inherit from <code>Throwable</code>. <strong>Checked</strong> exceptions (e.g. IOException) must be caught or declared. <strong>Unchecked</strong> exceptions (RuntimeException subclasses) don't require handling." },
+      { heading: "try / catch / finally", keys: ["try","catch","finally","order"], notes: "Structure: <code>try → catch → finally</code>. The <code>finally</code> block <strong>always runs</strong> — use it for cleanup (closing files). More <strong>specific</strong> exceptions must come before general ones in catch blocks." },
+      { heading: "Exception Methods", keys: ["getMessage","printStackTrace","call stack"], notes: "<code>getMessage()</code> returns the error description. <code>printStackTrace()</code> shows the full call chain. The <strong>call stack</strong> tracks all methods currently executing." },
+      { heading: "throw vs throws", keys: ["throw","throws","checked","unchecked"], notes: "<code>throw</code> is a <strong>statement</strong> that actually throws an exception. <code>throws</code> is a <strong>clause</strong> in the method header that declares which checked exceptions the method might throw." },
+      { heading: "Custom Exceptions", keys: ["custom exception","extends Exception"], notes: 'Create custom exceptions by extending <code>Exception</code>. Provide a constructor that passes the message via <code>super("message")</code>.' },
+      { heading: "Files: Text vs Binary vs Random", keys: ["text file","binary file","random access","serialization"], notes: "<strong>Text files</strong> store human-readable characters. <strong>Binary files</strong> store raw bytes. <strong>Sequential access</strong> reads start-to-end. <strong>Random access</strong> can jump to any position. <strong>Serialization</strong> converts an object to bytes for storage." }
+    ]
+  }
+};
+
+let currentStudyCh = 6;  // tracks which chapter is being studied
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE & DATA
+   ════════════════════════════════════════════════════════════════════════ */
+let session = {id:'', questions:[], idx:0, correct:0, wrongIds:[], total:0, qIds:[], mode:'unit', modeKey:'', weakQuestions:[], createdAt:0};
 let answered = false;
 let saves = {};
+
+/* ════════════════════════════════════════════════════════════════════════
+   SAVE / LOAD — Session-based tracking
+   ════════════════════════════════════════════════════════════════════════ */
+let saves = { sessions: [] };  // New structure: array of quiz sessions
 
 async function loadSaves() {
   const r = await fetch('/api/saves');
   saves = await r.json();
-  renderSaveSlots();
+  if (!saves.sessions) saves.sessions = [];
+  renderSessionTimeline();
 }
 
 async function persistSaves() {
@@ -526,78 +782,236 @@ async function loadConfig() {
   document.getElementById('model-badge').textContent = 'Model: ' + cfg.model;
 }
 
-function renderSaveSlots() {
-  const chs = [6,7,8,9,10,11];
+function renderSessionTimeline() {
+  const container = document.getElementById('session-timeline');
+  const emptyState = document.getElementById('empty-state');
+  
+  if (!saves.sessions || saves.sessions.length === 0) {
+    container.innerHTML = '';
+    emptyState.style.display = 'block';
+    return;
+  }
+  
+  emptyState.style.display = 'none';
+  
+  // Sort by newest first
+  const sorted = [...saves.sessions].sort((a, b) => b.createdAt - a.createdAt);
+  
   let html = '';
-  for (const ch of chs) {
-    const s = saves[ch];
-    if (s) {
-      html += `<div class="save-row">
-        <div>
-          <span style="font-size:14px;font-weight:500">Ch ${ch}</span>
-          <span style="font-size:12px;color:#999;margin-left:8px">Q${s.idx+1}/${s.total} &nbsp;·&nbsp; ${Math.round(s.pct)}% correct</span>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button onclick="resumeSave(${ch})" style="font-size:12px;padding:4px 10px">Resume</button>
-          <button onclick="clearSave(${ch})" style="font-size:12px;padding:4px 10px;color:#991b1b;border-color:#fca5a5">Clear</button>
-        </div>
+  for (const sess of sorted.slice(0, 10)) {  // Show 10 most recent
+    const date = new Date(sess.createdAt);
+    const dateStr = date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    const timeStr = date.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+    const pct = sess.totalQs > 0 ? Math.round((sess.correct / sess.totalQs) * 100) : 0;
+    const scoreClass = pct >= 80 ? 'high' : pct >= 60 ? 'medium' : 'low';
+    const statusClass = sess.status === 'completed' ? 'completed' : 'incomplete';
+    const statusText = sess.status === 'completed' ? '✓ Completed' : '⏳ In Progress';
+    
+    // Mode label
+    const modeLabel = sess.mode === 'unit' ? `Ch ${sess.chapters[0]}` : 
+                      sess.mode === 'custom' ? `Custom (${sess.chapters.length} ch)` : 
+                      'All Chapters';
+    
+    // Weak areas
+    let weakHtml = '';
+    if (sess.weakQuestions && sess.weakQuestions.length > 0) {
+      const weakTopics = [...new Set(sess.weakQuestions.map(q => q.type))];
+      weakHtml = `<div class="weak-areas">
+        <div class="weak-areas-title">⚠️ Weak Areas:</div>
+        ${weakTopics.map(t => `<span class="tag" style="font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">${{mc:'MC',tf:'T/F',fte:'FTE',aw:'Algorithm',sa:'Short Ans'}[t] || t}</span>`).join('')}
       </div>`;
-    } else {
-      html += `<div class="save-row"><span style="font-size:14px;color:#999">Ch ${ch} — no checkpoint</span></div>`;
     }
+    
+    html += `<div class="session-card ${statusClass}">
+      <div class="session-header">
+        <div>
+          <div class="session-title">${modeLabel}</div>
+          <div style="font-size:11px;color:#999;margin-top:2px">${dateStr} at ${timeStr}</div>
+        </div>
+        <span class="session-badge ${statusClass}">${statusText}</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:12px">
+        <div>
+          <div class="session-score ${scoreClass}">${pct}%</div>
+          <div style="font-size:11px;color:#999">Score</div>
+        </div>
+        <div class="session-info">
+          <div class="session-stat">
+            <div class="session-stat-label">Correct</div>
+            <div class="session-stat-value">${sess.correct}/${sess.totalQs}</div>
+          </div>
+          <div class="session-stat">
+            <div class="session-stat-label">Progress</div>
+            <div class="session-stat-value">Q${sess.currentIdx + 1}/${sess.totalQs}</div>
+          </div>
+        </div>
+      </div>
+      ${weakHtml}
+      <div class="session-actions">
+        ${sess.status === 'in_progress' ? `<button class="btn-primary" onclick="resumeSession('${sess.id}')" style="flex:2">Resume (Q${sess.currentIdx + 1})</button>` : ''}
+        <button onclick="viewSessionDetail('${sess.id}')" style="flex:1">Details</button>
+        <button onclick="deleteSession('${sess.id}')" style="flex:1;color:#991b1b;border-color:#fca5a5">Delete</button>
+      </div>
+    </div>`;
   }
-  document.getElementById('save-slots').innerHTML = html;
-
-  // Render Last Session Quick Access
-  const last = saves['last'];
-  const lastEl = document.getElementById('last-session-card');
-  if (last) {
-    lastEl.style.display = 'block';
-    document.getElementById('last-session-info').textContent = `Question ${last.idx + 1} of ${last.total} (${Math.round(last.pct)}% correct)`;
-  } else {
-    lastEl.style.display = 'none';
-  }
+  
+  container.innerHTML = html;
 }
 
-async function clearSave(ch) {
-  if (ch !== 'last' && !confirm(`Clear checkpoint for Chapter ${ch}?`)) return;
-  delete saves[ch];
+async function deleteSession(sessionId) {
+  if (!confirm('Delete this session?')) return;
+  saves.sessions = saves.sessions.filter(s => s.id !== sessionId);
   await persistSaves();
-  renderSaveSlots();
+  renderSessionTimeline();
+  showToast('Session deleted');
 }
 
-async function resetAllProgress() {
-  if (!confirm('Are you sure you want to clear ALL checkpoints and history? This cannot be undone.')) return;
-  saves = {};
-  await persistSaves();
-  renderSaveSlots();
-  showToast('All progress reset.');
-}
-
-function resumeSave(ch) {
-  const s = saves[ch];
-  if (!s) return;
-  session = { questions: s.qIds.map(id => QUESTIONS[id]), idx: s.idx, correct: s.correct, wrongIds: s.wrongIds || [], total: s.total, qIds: s.qIds };
+function resumeSession(sessionId) {
+  const sess = saves.sessions.find(s => s.id === sessionId);
+  if (!sess) return;
+  
+  // Reconstruct session
+  session = {
+    id: sess.id,
+    questions: sess.qIds.map(id => QUESTIONS[id]),
+    idx: sess.currentIdx,
+    correct: sess.correct,
+    wrongIds: sess.wrongIds || [],
+    total: sess.totalQs,
+    qIds: sess.qIds,
+    mode: sess.mode,
+    modeKey: sess.modeKey,
+    weakQuestions: sess.weakQuestions || []
+  };
   showQuiz();
 }
 
-function resumeLastSession() {
-  const s = saves['last'];
-  if (!s) return;
-  session = { questions: s.qIds.map(id => QUESTIONS[id]), idx: s.idx, correct: s.correct, wrongIds: s.wrongIds || [], total: s.total, qIds: s.qIds };
+function viewSessionDetail(sessionId) {
+  const sess = saves.sessions.find(s => s.id === sessionId);
+  if (!sess) return;
+  
+  const pct = sess.totalQs > 0 ? Math.round((sess.correct / sess.totalQs) * 100) : 0;
+  alert(`Session Detail\n\nChapters: ${sess.chapters.join(', ')}\nScore: ${pct}%\nCorrect: ${sess.correct}/${sess.totalQs}\nStatus: ${sess.status}\nCreated: ${new Date(sess.createdAt).toLocaleString()}`);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   STUDY MATERIAL — render chapter content
+   ════════════════════════════════════════════════════════════════════════ */
+function renderStudyUnitList() {
+  const el = document.getElementById('study-unit-list');
+  let html = '';
+  for (const ch of [6,7,8,9,10,11]) {
+    const info = CHAPTER_INFO[ch];
+    html += `<div class="unit-card" onclick="openStudy(${ch})">
+      <div class="unit-info">
+        <div class="unit-title">${info.title}</div>
+        <div class="unit-count">${info.topics.length} topics to review</div>
+      </div>
+      <div class="unit-arrow">&rarr;</div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function openStudy(ch) {
+  currentStudyCh = ch;
+  const info = CHAPTER_INFO[ch];
+  document.getElementById('study-title').textContent = info.title;
+
+  const chQuestions = QUESTIONS.filter(q => q.ch === ch);
+  const typeCount = {};
+  chQuestions.forEach(q => { typeCount[q.type] = (typeCount[q.type]||0) + 1; });
+  const typeLabels = {mc:'Multiple Choice', tf:'True/False', fte:'Find the Error', aw:'Algorithm Workbench', sa:'Short Answer'};
+
+  let html = `<div class="card" style="margin-bottom:1.5rem">
+    <div style="font-size:13px;color:#666;margin-bottom:6px">This chapter has <strong>${chQuestions.length} quiz questions</strong>:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">`;
+  for (const [t, count] of Object.entries(typeCount)) {
+    html += `<span class="tag">${typeLabels[t] || t}: ${count}</span>`;
+  }
+  html += `</div></div>`;
+
+  html += `<h3 style="margin-bottom:12px">Key Concepts</h3>`;
+  for (const topic of info.topics) {
+    html += `<details class="study-topic" open>
+      <summary>${topic.heading}</summary>
+      <div class="study-content">
+        <p>${topic.notes}</p>
+        <div>${topic.keys.map(k => `<span class="study-key">${k}</span>`).join('')}</div>
+      </div>
+    </details>`;
+  }
+
+  document.getElementById('study-body').innerHTML = html;
+  showScreen('screen-study');
+}
+
+function startUnitFromStudy() {
+  startUnit(currentStudyCh);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   UNIT QUIZ — pick one chapter
+   ════════════════════════════════════════════════════════════════════════ */
+function renderUnitList() {
+  const el = document.getElementById('unit-list');
+  let html = '';
+  for (const ch of [6,7,8,9,10,11]) {
+    const info = CHAPTER_INFO[ch];
+    const count = QUESTIONS.filter(q => q.ch === ch).length;
+    html += `<div class="unit-card" onclick="startUnit(${ch})">
+      <div class="unit-info">
+        <div class="unit-title">${info.title}</div>
+        <div class="unit-count">${count} questions</div>
+      </div>
+      <div class="unit-arrow">&rarr;</div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function startUnit(ch) {
+  let qs = QUESTIONS.filter(q => q.ch === ch).sort(() => Math.random() - 0.5);
+  session = { 
+    id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
+    questions: qs, 
+    idx: 0, 
+    correct: 0, 
+    wrongIds: [], 
+    total: qs.length, 
+    qIds: qs.map(q => QUESTIONS.indexOf(q)), 
+    mode: 'unit', 
+    modeKey: 'unit_' + ch,
+    weakQuestions: [],
+    createdAt: Date.now()
+  };
   showQuiz();
 }
 
-function restartCurrentSession() {
-  if (!confirm('Restart this session from the beginning? Your current progress will be reset.')) return;
-  session.idx = 0;
-  session.correct = 0;
-  session.wrongIds = [];
-  renderQuestion();
-  saveCurrent();
-  showToast('Session restarted');
+/* ════════════════════════════════════════════════════════════════════════
+   ALL UNITS COMBINED
+   ════════════════════════════════════════════════════════════════════════ */
+function startAllUnits() {
+  let qs = [...QUESTIONS].sort(() => Math.random() - 0.5);
+  session = { 
+    id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
+    questions: qs, 
+    idx: 0, 
+    correct: 0, 
+    wrongIds: [], 
+    total: qs.length, 
+    qIds: qs.map(q => QUESTIONS.indexOf(q)), 
+    mode: 'all', 
+    modeKey: 'all_combined',
+    weakQuestions: [],
+    createdAt: Date.now()
+  };
+  showQuiz();
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   CUSTOM QUIZ — existing behavior
+   ════════════════════════════════════════════════════════════════════════ */
 function startSession() {
   const chs = [...document.querySelectorAll('#chapter-chips .chip.selected')].map(c => +c.dataset.ch);
   const types = [...document.querySelectorAll('#type-chips .chip.selected')].map(c => c.dataset.type);
@@ -605,8 +1019,34 @@ function startSession() {
   const shuffle = document.getElementById('shuffle-toggle').checked;
   let qs = QUESTIONS.filter(q => chs.includes(q.ch) && types.includes(q.type));
   if (shuffle) qs = qs.sort(() => Math.random() - 0.5);
-  session = { questions: qs, idx: 0, correct: 0, wrongIds: [], total: qs.length, qIds: qs.map(q => QUESTIONS.indexOf(q)) };
+  const customKey = 'custom_' + chs.sort().join('-') + '_' + types.sort().join('-');
+  session = { 
+    id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
+    questions: qs, 
+    idx: 0, 
+    correct: 0, 
+    wrongIds: [], 
+    total: qs.length, 
+    qIds: qs.map(q => QUESTIONS.indexOf(q)), 
+    mode: 'custom', 
+    modeKey: customKey,
+    weakQuestions: [],
+    createdAt: Date.now()
+  };
   showQuiz();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   QUIZ ENGINE — shared by all modes
+   ════════════════════════════════════════════════════════════════════════ */
+function restartCurrentSession() {
+  if (!confirm('Restart this session from the beginning? Your current progress will be reset but this session will remain in history.')) return;
+  session.idx = 0;
+  session.correct = 0;
+  session.wrongIds = [];
+  renderQuestion();
+  saveCurrent();
+  showToast('Session restarted');
 }
 
 function showScreen(id) {
@@ -619,18 +1059,57 @@ function goHome() { saveCurrent(); showScreen('screen-home'); renderSaveSlots();
 
 async function saveCurrent() {
   if (!session.questions.length) return;
-  const chs = [...new Set(session.questions.map(q => q.ch))];
-  const pct = session.idx > 0 ? Math.round((session.correct / session.idx) * 100) : 0;
-  const state = { idx: session.idx, total: session.total, pct, correct: session.correct, wrongIds: session.wrongIds, qIds: session.qIds };
   
-  // Save to per-chapter slots
-  for (const ch of chs) {
-    saves[ch] = state;
+  // Update indicator
+  const ind = document.getElementById('auto-save-indicator');
+  if (ind) ind.textContent = 'Saving...';
+  
+  // Create or update session record
+  let sessionRecord = saves.sessions.find(s => s.id === session.id);
+  
+  if (!sessionRecord) {
+    // New session
+    sessionRecord = {
+      id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
+      createdAt: Date.now(),
+      mode: session.mode,
+      modeKey: session.modeKey,
+      chapters: extractChapters(session.questions),
+      qIds: session.qIds,
+      totalQs: session.total,
+      currentIdx: session.idx,
+      correct: session.correct,
+      wrongIds: session.wrongIds || [],
+      weakQuestions: [],
+      status: 'in_progress'
+    };
+    saves.sessions.push(sessionRecord);
+    session.id = sessionRecord.id;
+    session.createdAt = sessionRecord.createdAt;
+  } else {
+    // Update existing session
+    sessionRecord.currentIdx = session.idx;
+    sessionRecord.correct = session.correct;
+    sessionRecord.wrongIds = session.wrongIds || [];
+    sessionRecord.status = session.idx >= session.total ? 'completed' : 'in_progress';
   }
-  // Global last session
-  saves['last'] = state;
+  
+  // Track weak questions
+  sessionRecord.weakQuestions = session.wrongIds.map((idx, i) => session.questions[idx]).filter(q => q);
   
   await persistSaves();
+  
+  // Update indicator
+  if (ind) {
+    ind.textContent = 'Saved';
+    setTimeout(() => { if (ind) ind.textContent = 'Auto-saving...'; }, 1500);
+  }
+}
+
+function extractChapters(questions) {
+  if (!questions.length) return [];
+  const chapters = [...new Set(questions.map(q => q.ch))].sort((a, b) => a - b);
+  return chapters;
 }
 
 function showToast(msg) {
@@ -643,6 +1122,14 @@ function showToast(msg) {
 async function manualSave() {
   await saveCurrent();
   showToast('Checkpoint saved!');
+}
+
+async function resetAllProgress() {
+  if (!confirm('Are you sure you want to clear ALL session history? This cannot be undone.')) return;
+  saves.sessions = [];
+  await persistSaves();
+  renderSessionTimeline();
+  showToast('All sessions cleared');
 }
 
 function renderQuestion() {
@@ -737,10 +1224,42 @@ async function submitAnswer() {
 
 function showFeedback(type, label, msg, correctAnswer) {
   const el = document.getElementById('q-feedback');
-  let html = `<div class="feedback-box feedback-${type}"><strong>${label}</strong> ${msg}</div>`;
-  if (correctAnswer) html += `<div style="margin-top:4px"><p style="font-size:12px;color:#999;margin-bottom:4px">Model answer:</p><div class="answer-reveal">${correctAnswer}</div></div>`;
+  let html = '';
+  
+  // Create structured feedback box
+  if (type === 'success') {
+    html = `<div class="feedback-box feedback-${type}">
+      <strong>✓ Correct!</strong>
+      <div style="margin-top: 6px; font-size: 13px; line-height: 1.5;">${msg}</div>
+    </div>`;
+  } else if (type === 'warning') {
+    html = `<div class="feedback-box feedback-${type}">
+      <strong>◐ Partially Correct</strong>
+      <div style="margin-top: 6px; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(msg)}</div>
+    </div>`;
+  } else {
+    html = `<div class="feedback-box feedback-${type}">
+      <strong>✗ Incorrect</strong>
+      <div style="margin-top: 6px; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(msg)}</div>
+    </div>`;
+  }
+  
+  // Show model answer for all types
+  if (correctAnswer) {
+    html += `<div style="margin-top: 12px;">
+      <p style="font-size: 12px; color: #666; margin-bottom: 6px; font-weight: 500;">📋 Expected Answer:</p>
+      <div class="answer-reveal">${escapeHtml(correctAnswer)}</div>
+    </div>`;
+  }
+  
   el.innerHTML = html;
   el.style.display = 'block';
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function nextQuestion() {
@@ -749,6 +1268,9 @@ function nextQuestion() {
   renderQuestion();
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   END SCREEN & RETRY
+   ════════════════════════════════════════════════════════════════════════ */
 function showEnd() {
   showScreen('screen-end');
   const total = session.questions.length;
@@ -766,17 +1288,47 @@ function showEnd() {
   } else {
     document.getElementById('wrong-section').style.display = 'none';
   }
+  
+  // Auto-save session as completed
+  (async () => {
+    const sess = saves.sessions.find(s => s.id === session.id);
+    if (sess) {
+      sess.status = 'completed';
+      sess.currentIdx = session.idx;
+      sess.correct = session.correct;
+      sess.weakQuestions = session.wrongIds.map((idx) => session.questions[idx]).filter(q => q);
+      await persistSaves();
+      renderSessionTimeline();
+    }
+  })();
 }
 
 function retryWrong() {
   const wrongQs = session.wrongIds.map(id => session.questions[id]);
-  session = { questions: wrongQs, idx: 0, correct: 0, wrongIds: [], total: wrongQs.length, qIds: wrongQs.map(q => QUESTIONS.indexOf(q)) };
+  session = { 
+    id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
+    questions: wrongQs, 
+    idx: 0, 
+    correct: 0, 
+    wrongIds: [], 
+    total: wrongQs.length, 
+    qIds: wrongQs.map(q => QUESTIONS.indexOf(q)),
+    mode: 'review',
+    modeKey: 'retry_wrong',
+    weakQuestions: [],
+    createdAt: Date.now()
+  };
   showQuiz();
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   INIT — wire up chips, render lists, load data
+   ════════════════════════════════════════════════════════════════════════ */
 document.querySelectorAll('#chapter-chips .chip').forEach(c => c.addEventListener('click', () => c.classList.toggle('selected')));
 document.querySelectorAll('#type-chips .chip').forEach(c => c.addEventListener('click', () => c.classList.toggle('selected')));
 
+renderStudyUnitList();
+renderUnitList();
 loadConfig();
 loadSaves();
 </script>
