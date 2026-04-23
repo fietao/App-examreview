@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(netstat *)",
+      "PowerShell(Get-Command *)",
+      "Bash(curl -s *)",
+      "Bash(where *)"
+    ]
+  }
+}

@@ -14,7 +14,6 @@ import re
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, urlparse
 
 import requests
@@ -497,87 +496,10 @@ textarea:focus{outline:none;border-color:#999}
 .unit-card .unit-info .unit-title{font-size:15px;font-weight:500}
 .unit-card .unit-info .unit-count{font-size:12px;color:#999;margin-top:2px}
 .unit-card .unit-arrow{color:#ccc;font-size:18px}
-
-/* ── CSS variables — light / dark ── */
-:root{--bg:#f5f5f3;--surface:#fff;--border:#e5e5e5;--text:#1a1a1a;--muted:#999;--primary:#1a1a1a;--primary-fg:#fff}
-[data-dark]{--bg:#0f0f0f;--surface:#1c1c1e;--border:#2c2c2e;--text:#efefef;--muted:#5a5a5a;--primary:#e8e8e8;--primary-fg:#1a1a1a}
-body{background:var(--bg)!important;color:var(--text)!important}
-.card,.unit-card,.mode-card,.session-card,.study-topic,.answer-reveal{background:var(--surface)!important;border-color:var(--border)!important}
-.chip{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
-.mc-option{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
-textarea{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
-button:not(.btn-primary):not(.mc-option.correct):not(.mc-option.wrong):not(.mc-option.reveal):not(.btn-correct):not(.btn-wrong):not(.modal-x):not(.dark-toggle){background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
-.btn-primary{background:var(--primary)!important;color:var(--primary-fg)!important;border-color:var(--primary)!important}
-.subtitle,.meta,.session-stat-label,.unit-count{color:var(--muted)!important}
-.session-stat,.stat-card{background:var(--bg)!important}
-h1,h2,h3{color:var(--text)!important}
-.session-title{color:var(--text)!important}
-.progress-bar{background:var(--border)!important}
-.progress-fill{background:var(--text)!important}
-
-/* ── Dark mode toggle (fixed corner button) ── */
-.dark-toggle{position:fixed;top:14px;right:14px;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;box-shadow:0 2px 10px rgba(0,0,0,.08);transition:transform .2s,box-shadow .2s;padding:0}
-.dark-toggle:hover{transform:scale(1.1);box-shadow:0 4px 16px rgba(0,0,0,.12)}
-
-/* ── Ollama connection badge ── */
-.conn-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--border);margin-left:8px;cursor:pointer;vertical-align:middle;transition:border-color .2s}
-.conn-badge:hover{border-color:#93c5fd}
-.conn-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s}
-.conn-dot.ok{background:#22c55e;box-shadow:0 0 6px #22c55e80}
-.conn-dot.err{background:#ef4444;box-shadow:0 0 6px #ef444480}
-.conn-dot.wait{background:#f59e0b;animation:cblink 1s infinite}
-@keyframes cblink{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* ── Modal system ── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .18s}
-.modal-overlay.open{opacity:1;pointer-events:auto}
-.modal{background:var(--surface);border-radius:16px;padding:1.5rem;max-width:520px;width:100%;max-height:84vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.22);transform:scale(.93);transition:transform .2s cubic-bezier(.18,.89,.32,1.28)}
-.modal-overlay.open .modal{transform:scale(1)}
-.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem}
-.modal-hdr h3{margin:0;font-size:16px;font-weight:600;color:var(--text)}
-.modal-x{background:none!important;border:none!important;font-size:20px;color:var(--muted)!important;cursor:pointer;padding:0;line-height:1;width:30px;height:30px;border-radius:50%!important;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.modal-x:hover{background:var(--border)!important}
-.modal-body{font-size:14px;line-height:1.75;color:var(--text)}
-.modal-foot{margin-top:1.25rem;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-.modal-foot button{min-width:90px}
-
-/* ── Session detail grid ── */
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:1rem 0}
-.detail-cell{background:var(--bg);border-radius:8px;padding:10px 12px}
-.detail-cell .dcl{font-size:11px;color:var(--muted);margin-bottom:3px}
-.detail-cell .dcv{font-size:16px;font-weight:700;color:var(--text)}
-
-/* ── Keyboard hint ── */
-.hint{font-size:11px;color:var(--muted);margin-top:5px}
-.kbd{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:10px;color:var(--muted)}
-
-/* ── Export button ── */
-.btn-export{background:var(--surface)!important;border:1px solid var(--border)!important;color:var(--text)!important;font-size:12px!important;padding:5px 12px!important}
-
-/* ── Toast improvements ── */
-.toast{background:var(--primary);color:var(--primary-fg)}
-
-/* ── Announce bar (Ollama offline) ── */
-.announce{background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 14px;font-size:13px;color:#92400e;margin-bottom:1rem;display:none;align-items:center;gap:8px}
-.announce.show{display:flex}
 </style>
 </head>
 <body>
 <div id="toast" class="toast">Checkpoint saved!</div>
-<button class="dark-toggle" onclick="toggleDark()" title="Toggle dark mode" id="dark-btn">🌙</button>
-
-<!-- ── Modal overlay (used for alerts, confirms, details) ── -->
-<div id="modal-overlay" class="modal-overlay" onclick="handleOverlayClick(event)">
-  <div class="modal">
-    <div class="modal-hdr">
-      <h3 id="modal-title"></h3>
-      <button class="modal-x" onclick="closeModal()" aria-label="Close">&times;</button>
-    </div>
-    <div class="modal-body" id="modal-body"></div>
-    <div class="modal-foot" id="modal-foot"></div>
-  </div>
-</div>
-
 <div class="app">
 
   <!-- ════════════════════════════════════════════════════════════════════
@@ -586,18 +508,7 @@ h1,h2,h3{color:var(--text)!important}
   <div id="screen-home" class="screen active">
     <h1>Java Study App</h1>
     <p class="subtitle">Chapters 6 – 11 &nbsp;·&nbsp; AI graded by Ollama &nbsp;·&nbsp; Checkpoints saved locally</p>
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:1rem">
-      <div class="model-badge" id="model-badge" style="margin-bottom:0">Loading...</div>
-      <div class="conn-badge" id="conn-badge" onclick="checkHealth(true)" title="Click to refresh connection">
-        <span class="conn-dot wait" id="conn-dot"></span>
-        <span id="conn-label">Checking AI...</span>
-      </div>
-      <button class="btn-export" id="btn-export-all" onclick="exportAllSessions()" style="display:none">⬇ Export Progress</button>
-    </div>
-    <div class="announce" id="ollama-announce">
-      ⚠️ <strong>Ollama not detected.</strong>&nbsp; AI grading is unavailable for written questions.
-      <a href="https://ollama.com/download" target="_blank" style="color:#92400e;font-weight:600">Install Ollama →</a>
-    </div>
+    <div class="model-badge" id="model-badge">Loading model info...</div>
 
     <div class="mode-grid">
       <div class="mode-card" onclick="showScreen('screen-study-pick')">
@@ -728,10 +639,7 @@ h1,h2,h3{color:var(--text)!important}
           <span style="font-size:12px;color:#999;display:flex;align-items:center;gap:4px">💾 <span id="auto-save-indicator">Auto-saving...</span></span>
       </div>
       <div class="spacer"></div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-        <button class="btn-primary" id="btn-next" onclick="nextQuestion()" style="display:none">Next &rarr;</button>
-        <span class="hint" id="key-hint" style="display:none"><kbd class="kbd">Enter</kbd> to continue</span>
-      </div>
+      <button class="btn-primary" id="btn-next" onclick="nextQuestion()" style="display:none">Next &rarr;</button>
     </div>
   </div>
 
@@ -750,174 +658,14 @@ h1,h2,h3{color:var(--text)!important}
       <div class="card wrong-list" id="wrong-list"></div>
       <button style="margin-top:10px" onclick="retryWrong()">Retry wrong answers</button>
     </div>
-    <div class="row" style="margin-top:1.5rem;gap:10px;flex-wrap:wrap">
+    <div class="row" style="margin-top:1.5rem">
       <button class="btn-primary" onclick="goHome()">Back to home</button>
-      <button onclick="exportCurrentSession()" style="font-size:13px">⬇ Export Results</button>
     </div>
   </div>
 
 </div>
 <script>
 const QUESTIONS = __QUESTIONS__;
-
-/* ════════════════════════════════════════════════════════════════════════
-   DARK MODE
-   ════════════════════════════════════════════════════════════════════════ */
-(function initDark() {
-  if (localStorage.getItem('dark') === '1') {
-    document.documentElement.setAttribute('data-dark', '');
-    document.getElementById('dark-btn').textContent = '☀️';
-  }
-})();
-
-function toggleDark() {
-  const isDark = document.documentElement.hasAttribute('data-dark');
-  if (isDark) {
-    document.documentElement.removeAttribute('data-dark');
-    document.getElementById('dark-btn').textContent = '🌙';
-    localStorage.removeItem('dark');
-  } else {
-    document.documentElement.setAttribute('data-dark', '');
-    document.getElementById('dark-btn').textContent = '☀️';
-    localStorage.setItem('dark', '1');
-  }
-}
-
-/* ════════════════════════════════════════════════════════════════════════
-   MODAL SYSTEM — replaces all alert() and confirm()
-   ════════════════════════════════════════════════════════════════════════ */
-function openModal(title, bodyHtml, footerHtml = '') {
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-body').innerHTML = bodyHtml;
-  document.getElementById('modal-foot').innerHTML = footerHtml ||
-    '<button class="btn-primary" onclick="closeModal()">OK</button>';
-  document.getElementById('modal-overlay').classList.add('open');
-  // Focus first button for accessibility
-  setTimeout(() => {
-    const btn = document.querySelector('#modal-foot button');
-    if (btn) btn.focus();
-  }, 200);
-}
-
-function closeModal() {
-  document.getElementById('modal-overlay').classList.remove('open');
-}
-
-function handleOverlayClick(e) {
-  if (e.target === document.getElementById('modal-overlay')) closeModal();
-}
-
-// Confirm modal: returns a promise resolved with true/false
-function showConfirm(title, message, confirmLabel = 'Confirm', danger = false) {
-  return new Promise(resolve => {
-    const confirmBtn = `<button class="${danger ? 'btn-primary' : 'btn-primary'}"
-      style="${danger ? 'background:#dc2626!important;border-color:#dc2626!important' : ''}"
-      onclick="closeModal(); window._confirmResolve(true)">${confirmLabel}</button>`;
-    const cancelBtn = `<button onclick="closeModal(); window._confirmResolve(false)">Cancel</button>`;
-    window._confirmResolve = resolve;
-    openModal(title, `<p style="margin:0;color:var(--text)">${message}</p>`,
-      cancelBtn + confirmBtn);
-  });
-}
-
-// Escape key closes modal
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.getElementById('modal-overlay').classList.contains('open')) {
-    closeModal();
-    if (window._confirmResolve) { window._confirmResolve(false); window._confirmResolve = null; }
-  }
-});
-
-/* ════════════════════════════════════════════════════════════════════════
-   KEYBOARD SHORTCUTS
-   ════════════════════════════════════════════════════════════════════════ */
-document.addEventListener('keydown', e => {
-  if (document.getElementById('modal-overlay').classList.contains('open')) return;
-  const nextBtn = document.getElementById('btn-next');
-  if (e.key === 'Enter' && nextBtn && nextBtn.style.display !== 'none') {
-    // Don't trigger if user is typing in a textarea
-    if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') return;
-    e.preventDefault();
-    nextQuestion();
-  }
-});
-
-/* ════════════════════════════════════════════════════════════════════════
-   OLLAMA HEALTH CHECK
-   ════════════════════════════════════════════════════════════════════════ */
-let _ollamaOk = null;
-
-async function checkHealth(showFeedback = false) {
-  const dot = document.getElementById('conn-dot');
-  const label = document.getElementById('conn-label');
-  dot.className = 'conn-dot wait';
-  label.textContent = 'Checking...';
-  try {
-    const r = await fetch('/api/health');
-    const d = await r.json();
-    _ollamaOk = d.ollama;
-    dot.className = 'conn-dot ' + (d.ollama ? 'ok' : 'err');
-    label.textContent = d.ollama ? 'AI Ready' : 'AI Offline';
-    document.getElementById('ollama-announce').classList.toggle('show', !d.ollama);
-    if (showFeedback) showToast(d.ollama ? 'Ollama connected ✓' : 'Ollama not found');
-  } catch {
-    _ollamaOk = false;
-    dot.className = 'conn-dot err';
-    label.textContent = 'AI Offline';
-    document.getElementById('ollama-announce').classList.add('show');
-    if (showFeedback) showToast('Connection check failed');
-  }
-}
-
-/* ════════════════════════════════════════════════════════════════════════
-   EXPORT — download session data as JSON
-   ════════════════════════════════════════════════════════════════════════ */
-function exportAllSessions() {
-  if (!saves || !saves.sessions || saves.sessions.length === 0) {
-    openModal('Nothing to Export', '<p>No sessions recorded yet. Complete at least one quiz first.</p>');
-    return;
-  }
-  const rows = ['Date,Mode,Chapters,Score,Correct,Total,Status'];
-  for (const s of saves.sessions) {
-    const d = new Date(s.createdAt).toLocaleDateString();
-    const pct = s.totalQs > 0 ? Math.round((s.correct / s.totalQs) * 100) : 0;
-    rows.push([d, s.mode, (s.chapters||[]).join(';'), pct+'%', s.correct, s.totalQs, s.status].join(','));
-  }
-  _downloadFile('java_study_progress.csv', rows.join('\\n'), 'text/csv');
-  showToast('Progress exported!');
-}
-
-function exportCurrentSession() {
-  if (!session) return;
-  const pct = session.total > 0 ? Math.round((session.correct / session.total) * 100) : 0;
-  const lines = [
-    'Java Study App — Session Results',
-    'Date: ' + new Date().toLocaleString(),
-    'Mode: ' + (session.mode || 'quiz'),
-    'Score: ' + pct + '%  (' + session.correct + '/' + session.total + ' correct)',
-    '',
-    'Missed Questions:'
-  ];
-  const wrong = session.wrongIds || [];
-  if (wrong.length === 0) {
-    lines.push('  (none — perfect score!)');
-  } else {
-    wrong.forEach((idx, i) => {
-      const q = session.questions[idx];
-      if (q) lines.push('  ' + (i+1) + '. Ch' + q.ch + ' [' + q.type.toUpperCase() + '] ' + q.q.split('\\n')[0].slice(0,80));
-    });
-  }
-  _downloadFile('java_study_results.txt', lines.join('\\n'), 'text/plain');
-  showToast('Results exported!');
-}
-
-function _downloadFile(name, content, mime) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([content], {type: mime}));
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
 
 /* ════════════════════════════════════════════════════════════════════════
    CHAPTER METADATA — titles & study material for each unit
@@ -1006,11 +754,12 @@ let currentStudyCh = 6;  // tracks which chapter is being studied
    ════════════════════════════════════════════════════════════════════════ */
 let session = {id:'', questions:[], idx:0, correct:0, wrongIds:[], total:0, qIds:[], mode:'unit', modeKey:'', weakQuestions:[], createdAt:0};
 let answered = false;
-let saves = { sessions: [] };
+let saves = {};
 
 /* ════════════════════════════════════════════════════════════════════════
    SAVE / LOAD — Session-based tracking
    ════════════════════════════════════════════════════════════════════════ */
+let saves = { sessions: [] };  // New structure: array of quiz sessions
 
 async function loadSaves() {
   const r = await fetch('/api/saves');
@@ -1028,29 +777,22 @@ async function persistSaves() {
 }
 
 async function loadConfig() {
-  try {
-    const r = await fetch('/api/config');
-    const cfg = await r.json();
-    document.getElementById('model-badge').textContent = 'Model: ' + cfg.model;
-  } catch(e) {
-    document.getElementById('model-badge').textContent = 'Model: qwen2.5:1.5b';
-  }
+  const r = await fetch('/api/config');
+  const cfg = await r.json();
+  document.getElementById('model-badge').textContent = 'Model: ' + cfg.model;
 }
 
 function renderSessionTimeline() {
   const container = document.getElementById('session-timeline');
   const emptyState = document.getElementById('empty-state');
   
-  const exportBtn = document.getElementById('btn-export-all');
   if (!saves.sessions || saves.sessions.length === 0) {
     container.innerHTML = '';
     emptyState.style.display = 'block';
-    if (exportBtn) exportBtn.style.display = 'none';
     return;
   }
-
+  
   emptyState.style.display = 'none';
-  if (exportBtn) exportBtn.style.display = 'inline-flex';
   
   // Sort by newest first
   const sorted = [...saves.sessions].sort((a, b) => b.createdAt - a.createdAt);
@@ -1117,8 +859,7 @@ function renderSessionTimeline() {
 }
 
 async function deleteSession(sessionId) {
-  const ok = await showConfirm('Delete Session', 'Remove this session from history? This cannot be undone.', 'Delete', true);
-  if (!ok) return;
+  if (!confirm('Delete this session?')) return;
   saves.sessions = saves.sessions.filter(s => s.id !== sessionId);
   await persistSaves();
   renderSessionTimeline();
@@ -1148,48 +889,9 @@ function resumeSession(sessionId) {
 function viewSessionDetail(sessionId) {
   const sess = saves.sessions.find(s => s.id === sessionId);
   if (!sess) return;
-
+  
   const pct = sess.totalQs > 0 ? Math.round((sess.correct / sess.totalQs) * 100) : 0;
-  const scoreColor = pct >= 80 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
-  const modeLabel = sess.mode === 'unit' ? `Chapter ${(sess.chapters||[])[0]}` :
-                    sess.mode === 'custom' ? `Custom (${(sess.chapters||[]).length} chapters)` :
-                    sess.mode === 'review' ? 'Retry Wrong' : 'All Chapters';
-
-  let weakHtml = '';
-  if (sess.weakQuestions && sess.weakQuestions.length > 0) {
-    const types = [...new Set(sess.weakQuestions.map(q => q.type))];
-    weakHtml = `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Weak areas</div>
-      ${types.map(t => `<span class="tag" style="background:#fee2e2;color:#991b1b;border-color:#fca5a5">${{mc:'Multiple Choice',tf:'True/False',fte:'Find the Error',aw:'Algorithm',sa:'Short Answer'}[t]||t}</span>`).join('')}
-    </div>`;
-  }
-
-  const body = `
-    <div class="detail-grid">
-      <div class="detail-cell">
-        <div class="dcl">Score</div>
-        <div class="dcv" style="color:${scoreColor}">${pct}%</div>
-      </div>
-      <div class="detail-cell">
-        <div class="dcl">Correct</div>
-        <div class="dcv">${sess.correct} / ${sess.totalQs}</div>
-      </div>
-      <div class="detail-cell">
-        <div class="dcl">Mode</div>
-        <div class="dcv" style="font-size:13px">${modeLabel}</div>
-      </div>
-      <div class="detail-cell">
-        <div class="dcl">Status</div>
-        <div class="dcv" style="font-size:13px;color:${sess.status==='completed'?'#16a34a':'#d97706'}">${sess.status==='completed'?'Completed':'In Progress'}</div>
-      </div>
-    </div>
-    <div style="font-size:12px;color:var(--muted)">Chapters: ${(sess.chapters||[]).join(', ')}</div>
-    <div style="font-size:12px;color:var(--muted);margin-top:4px">Date: ${new Date(sess.createdAt).toLocaleString()}</div>
-    ${weakHtml}
-  `;
-  openModal('Session Details', body,
-    `<button onclick="closeModal()">Close</button>` +
-    (sess.status === 'in_progress' ? `<button class="btn-primary" onclick="closeModal();resumeSession('${sess.id}')">Resume Quiz</button>` : ''));
+  alert(`Session Detail\n\nChapters: ${sess.chapters.join(', ')}\nScore: ${pct}%\nCorrect: ${sess.correct}/${sess.totalQs}\nStatus: ${sess.status}\nCreated: ${new Date(sess.createdAt).toLocaleString()}`);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1313,7 +1015,7 @@ function startAllUnits() {
 function startSession() {
   const chs = [...document.querySelectorAll('#chapter-chips .chip.selected')].map(c => +c.dataset.ch);
   const types = [...document.querySelectorAll('#type-chips .chip.selected')].map(c => c.dataset.type);
-  if (!chs.length || !types.length) { openModal('Selection Required', '<p>Please select at least one chapter and one question type to start.</p>'); return; }
+  if (!chs.length || !types.length) { alert('Select at least one chapter and one question type.'); return; }
   const shuffle = document.getElementById('shuffle-toggle').checked;
   let qs = QUESTIONS.filter(q => chs.includes(q.ch) && types.includes(q.type));
   if (shuffle) qs = qs.sort(() => Math.random() - 0.5);
@@ -1337,9 +1039,8 @@ function startSession() {
 /* ════════════════════════════════════════════════════════════════════════
    QUIZ ENGINE — shared by all modes
    ════════════════════════════════════════════════════════════════════════ */
-async function restartCurrentSession() {
-  const ok = await showConfirm('Restart Session', 'Start over from question 1? Your current progress will be reset, but this session stays in history.', 'Restart', true);
-  if (!ok) return;
+function restartCurrentSession() {
+  if (!confirm('Restart this session from the beginning? Your current progress will be reset but this session will remain in history.')) return;
   session.idx = 0;
   session.correct = 0;
   session.wrongIds = [];
@@ -1424,8 +1125,7 @@ async function manualSave() {
 }
 
 async function resetAllProgress() {
-  const ok = await showConfirm('Clear All History', 'This will permanently delete ALL session history. This cannot be undone.', 'Clear All', true);
-  if (!ok) return;
+  if (!confirm('Are you sure you want to clear ALL session history? This cannot be undone.')) return;
   saves.sessions = [];
   await persistSaves();
   renderSessionTimeline();
@@ -1445,7 +1145,6 @@ function renderQuestion() {
   document.getElementById('q-text').textContent = q.type === 'mc' ? q.q.split('\\n')[0] : q.q;
   document.getElementById('q-feedback').style.display = 'none';
   document.getElementById('btn-next').style.display = 'none';
-  document.getElementById('key-hint').style.display = 'none';
   const body = document.getElementById('q-body');
   if (q.type === 'mc') {
     const lines = q.q.split('\\n').slice(1).filter(l => l.trim());
@@ -1477,7 +1176,6 @@ function checkMC(btn, chosen, correct) {
   const q = session.questions[session.idx];
   showFeedback(isCorrect ? 'success' : 'danger', isCorrect ? 'Correct!' : 'Incorrect.', q.explain);
   document.getElementById('btn-next').style.display = 'inline-block';
-  document.getElementById('key-hint').style.display = 'inline';
   saveCurrent();
 }
 
@@ -1491,14 +1189,13 @@ function checkTF(btn, chosen, correct) {
   else { btn.classList.add('btn-wrong'); btns.forEach(b => { if (b.textContent === correct) b.classList.add('btn-correct'); }); session.wrongIds.push(session.idx); }
   showFeedback(isCorrect ? 'success' : 'danger', isCorrect ? 'Correct!' : 'Incorrect.', session.questions[session.idx].explain);
   document.getElementById('btn-next').style.display = 'inline-block';
-  document.getElementById('key-hint').style.display = 'inline';
   saveCurrent();
 }
 
 async function submitAnswer() {
   if (answered) return;
   const userAns = document.getElementById('user-answer').value.trim();
-  if (!userAns) { openModal('Answer Required', '<p>Please write your answer in the text box before submitting.</p>'); return; }
+  if (!userAns) { alert('Please write an answer first.'); return; }
   const btn = document.getElementById('btn-submit');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Grading with Ollama...';
@@ -1521,10 +1218,7 @@ async function submitAnswer() {
   } catch(e) {
     btn.disabled = false;
     btn.innerHTML = 'Submit for AI grading';
-    openModal('Grading Unavailable',
-      `<p>Could not connect to Ollama for AI grading.</p>
-       <p style="margin-top:8px;color:var(--muted);font-size:13px">Make sure Ollama is running: <code>ollama serve</code></p>
-       <p style="font-size:12px;color:var(--muted);margin-top:4px">Error: ${e.message}</p>`);
+    alert('Grading failed. Is Ollama running? Error: ' + e.message);
   }
 }
 
@@ -1637,9 +1331,6 @@ renderStudyUnitList();
 renderUnitList();
 loadConfig();
 loadSaves();
-checkHealth();
-// Recheck Ollama every 60s in case user starts it after loading
-setInterval(() => checkHealth(), 60000);
 </script>
 </body>
 </html>"""
@@ -1650,17 +1341,11 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # suppress request logs — keep terminal clean
 
-    def _cors(self):
-        self.send_header("Access-Control-Allow-Origin", "http://localhost:5000")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-
     def send_json(self, data, status=200):
         body = json.dumps(data).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", len(body))
-        self._cors()
         self.end_headers()
         self.wfile.write(body)
 
@@ -1687,13 +1372,6 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(load_saves())
         elif path == "/api/config":
             self.send_json({"model": OLLAMA_MODEL, "port": SERVER_PORT})
-        elif path == "/api/health":
-            try:
-                r = requests.get("http://localhost:11434/api/tags", timeout=3)
-                ok = r.status_code == 200
-            except Exception:
-                ok = False
-            self.send_json({"ollama": ok, "model": OLLAMA_MODEL})
         else:
             self.send_response(404)
             self.end_headers()
@@ -1728,10 +1406,7 @@ def main():
     print(f"  Make sure model is pulled:  ollama pull {OLLAMA_MODEL}")
     print("=" * 50)
 
-    class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-        daemon_threads = True
-
-    server = ThreadedHTTPServer(("localhost", SERVER_PORT), Handler)
+    server = HTTPServer(("localhost", SERVER_PORT), Handler)
 
     def open_browser():
         import time
