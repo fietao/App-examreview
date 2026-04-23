@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-OLLAMA_MODEL  = "qwen2.5:1.5b"         # switched to 1.5B for instant speed on GPU
+OLLAMA_MODEL  = "llama3:latest"        # installed local model for AI grading
 OLLAMA_URL    = "http://localhost:11434/api/generate"
 SERVER_PORT   = 5000
 SAVE_FILE     = "checkpoints.json"  # saved next to this script
@@ -293,7 +293,7 @@ def write_saves(data):
 
 
 def grade_with_ollama(question: str, correct_answer: str, student_answer: str) -> dict:
-    prompt = f"""You are a rigorous Java programming instructor grading exam answers.
+  prompt = f"""You are a strict Java instructor grading a student response.
 
 QUESTION: {question}
 
@@ -301,40 +301,51 @@ CORRECT/EXPECTED ANSWER: {correct_answer}
 
 STUDENT'S ANSWER: {student_answer}
 
-GRADING CRITERIA:
-- CORRECT: Student demonstrates 85%+ understanding. Answer is essentially complete, accurate, and shows proper conceptual grasp. Minor wording differences are OK.
-- PARTIAL: Student demonstrates 50-84% understanding. Answer shows partial knowledge but has gaps, missing key concepts, or logical errors. Fundamentals present but incomplete.
-- INCORRECT: Student demonstrates <50% understanding. Answer is mostly wrong, missing core concepts, or fundamentally misunderstands the topic.
+Verdict rules:
+- CORRECT: mostly complete and accurate (about 85%+).
+- PARTIAL: some correct ideas but important gaps/errors.
+- INCORRECT: mostly wrong or missing core concept.
 
-Evaluate deeply. Check if the student:
-1. Identifies key concepts correctly
-2. Uses proper terminology  
-3. Shows logical reasoning
-4. Avoids fundamental misconceptions
-5. Covers essential points needed to fully answer
-
-Be STRICT. Don't give CORRECT unless truly 85%+ complete and accurate.
-
-Format your response EXACTLY like this (4 lines total):
+Return EXACTLY 4 lines:
 VERDICT: [CORRECT/PARTIAL/INCORRECT]
 KEY_STRENGTHS: [1-2 things student got right]
 KEY_GAPS: [main missing concepts or errors]
 FEEDBACK: [brief guidance on how to improve]"""
 
-    try:
-        resp = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL, 
-                "prompt": prompt, 
+  fallback_prompt = f"""Grade this Java answer strictly.
+Q: {question}
+Expected: {correct_answer}
+Student: {student_answer}
+Return exactly:
+VERDICT: CORRECT or PARTIAL or INCORRECT
+KEY_STRENGTHS: short
+KEY_GAPS: short
+FEEDBACK: short"""
+
+  try:
+        payload = {
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "num_predict": 120,
+                "temperature": 0.0
+            }
+        }
+        try:
+            resp = requests.post(OLLAMA_URL, json=payload, timeout=45)
+        except requests.exceptions.Timeout:
+            # Retry once with a much shorter prompt/output budget for slower local setups.
+            retry_payload = {
+                "model": OLLAMA_MODEL,
+                "prompt": fallback_prompt,
                 "stream": False,
                 "options": {
-                    "num_predict": 200,  # More space for structured output
-                    "temperature": 0.1   # Low temp for consistency
+                    "num_predict": 80,
+                    "temperature": 0.0
                 }
-            },
-            timeout=60,
-        )
+            }
+            resp = requests.post(OLLAMA_URL, json=retry_payload, timeout=75)
         resp.raise_for_status()
         text = resp.json().get("response", "")
         
@@ -381,8 +392,8 @@ FEEDBACK: [brief guidance on how to improve]"""
             feedback_output = f"✗ This needs more work:\n• Is missing: {gaps if gaps else 'key concepts'}\n• Review and try again: {feedback if feedback else 'revisit the material'}"
         
         return {"verdict": verdict, "feedback": feedback_output}
-    except Exception as e:
-        return {"verdict": "ERROR", "feedback": f"Ollama error: {str(e)}"}
+  except Exception as e:
+    return {"verdict": "ERROR", "feedback": f"Ollama error: {str(e)}"}
 
 
 HTML_PAGE = """<!DOCTYPE html>
@@ -500,7 +511,7 @@ textarea:focus{outline:none;border-color:#999}
 
 /* ── CSS variables — light / dark ── */
 :root{--bg:#f5f5f3;--surface:#fff;--border:#e5e5e5;--text:#1a1a1a;--muted:#999;--primary:#1a1a1a;--primary-fg:#fff}
-[data-dark]{--bg:#0f0f0f;--surface:#1c1c1e;--border:#2c2c2e;--text:#efefef;--muted:#5a5a5a;--primary:#e8e8e8;--primary-fg:#1a1a1a}
+[data-dark]{--bg:#0f0f0f;--surface:#1c1c1e;--border:#2c2c2e;--text:#efefef;--muted:#b5b5b5;--primary:#e8e8e8;--primary-fg:#1a1a1a}
 body{background:var(--bg)!important;color:var(--text)!important}
 .card,.unit-card,.mode-card,.session-card,.study-topic,.answer-reveal{background:var(--surface)!important;border-color:var(--border)!important}
 .chip{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
@@ -514,6 +525,71 @@ h1,h2,h3{color:var(--text)!important}
 .session-title{color:var(--text)!important}
 .progress-bar{background:var(--border)!important}
 .progress-fill{background:var(--text)!important}
+[data-dark] .session-meta,
+[data-dark] .score-badge,
+[data-dark] .session-stat-value,
+[data-dark] .wrong-item,
+[data-dark] .study-topic .study-content,
+[data-dark] .mode-desc,
+[data-dark] .unit-card .unit-info .unit-count,
+[data-dark] .answer-reveal{color:var(--text)!important}
+[data-dark] .tag,
+[data-dark] .session-badge,
+[data-dark] .study-key{color:var(--text)!important}
+[data-dark] .study-topic .study-content code,
+[data-dark] .answer-reveal,
+[data-dark] .study-topic .study-content pre{background:var(--bg)!important;border-color:var(--border)!important;color:var(--text)!important}
+[data-dark] .app,
+[data-dark] .app *{color:var(--text)!important}
+[data-dark] .btn-primary,
+[data-dark] .btn-primary *,
+[data-dark] .btn-correct,
+[data-dark] .btn-correct *,
+[data-dark] .btn-wrong,
+[data-dark] .btn-wrong *,
+[data-dark] .mc-option.correct,
+[data-dark] .mc-option.wrong,
+[data-dark] .mc-option.reveal,
+[data-dark] .toast,
+[data-dark] .toast *,
+[data-dark] .feedback-success,
+[data-dark] .feedback-warning,
+[data-dark] .feedback-danger,
+[data-dark] .session-score.low,
+[data-dark] .session-score.medium,
+[data-dark] .session-score.high,
+[data-dark] .conn-dot,
+[data-dark] .dark-toggle,
+[data-dark] .dark-toggle *{color:inherit!important}
+[data-dark] .btn-primary{background:var(--primary)!important;color:var(--primary-fg)!important;border-color:var(--primary)!important}
+[data-dark] .btn-correct{background:#14532d!important;border-color:#14532d!important;color:#dcfce7!important}
+[data-dark] .btn-wrong{background:#7f1d1d!important;border-color:#7f1d1d!important;color:#fee2e2!important}
+[data-dark] .mc-option.correct{background:#14532d!important;border-color:#166534!important;color:#dcfce7!important}
+[data-dark] .mc-option.wrong{background:#7f1d1d!important;border-color:#991b1b!important;color:#fee2e2!important}
+[data-dark] .mc-option.reveal{background:#14532d!important;border-color:#166534!important;color:#dcfce7!important}
+[data-dark] .feedback-success{background:#052e16!important;border-color:#22c55e!important;color:#bbf7d0!important}
+[data-dark] .feedback-warning{background:#422006!important;border-color:#f59e0b!important;color:#fde68a!important}
+[data-dark] .feedback-danger{background:#450a0a!important;border-color:#ef4444!important;color:#fecaca!important}
+[data-dark] .session-score.low{color:#fca5a5!important}
+[data-dark] .session-score.medium{color:#fbbf24!important}
+[data-dark] .session-score.high{color:#4ade80!important}
+[data-dark] .conn-dot.ok{background:#22c55e!important}
+[data-dark] .conn-dot.err{background:#ef4444!important}
+[data-dark] .conn-dot.wait{background:#f59e0b!important}
+[data-dark] .dark-toggle{color:var(--text)!important}
+[data-dark] .timeline-dot{background:#60a5fa!important}
+[data-dark] [style*="color:#999"],
+[data-dark] [style*="color: #999"],
+[data-dark] [style*="color:#666"],
+[data-dark] [style*="color: #666"],
+[data-dark] [style*="color:#555"],
+[data-dark] [style*="color: #555"],
+[data-dark] [style*="color:#444"],
+[data-dark] [style*="color: #444"],
+[data-dark] [style*="color:#333"],
+[data-dark] [style*="color: #333"],
+[data-dark] [style*="color:#ddd"],
+[data-dark] [style*="color: #ddd"]{color:var(--text)!important}
 
 /* ── Dark mode toggle (fixed corner button) ── */
 .dark-toggle{position:fixed;top:14px;right:14px;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;box-shadow:0 2px 10px rgba(0,0,0,.08);transition:transform .2s,box-shadow .2s;padding:0}
@@ -1033,7 +1109,7 @@ async function loadConfig() {
     const cfg = await r.json();
     document.getElementById('model-badge').textContent = 'Model: ' + cfg.model;
   } catch(e) {
-    document.getElementById('model-badge').textContent = 'Model: qwen2.5:1.5b';
+    document.getElementById('model-badge').textContent = 'Model: llama3:latest';
   }
 }
 
