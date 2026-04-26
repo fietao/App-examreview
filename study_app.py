@@ -20,8 +20,9 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-OLLAMA_MODEL  = "llama3:latest"        # installed local model for AI grading
-OLLAMA_URL    = "http://localhost:11434/api/generate"
+OLLAMA_MODEL    = "llama3:latest"        # installed local model for AI grading
+OLLAMA_BASE_URL = "http://localhost:11434"
+OLLAMA_URL      = f"{OLLAMA_BASE_URL}/api/generate"
 SERVER_PORT   = 5000
 SAVE_FILE     = "checkpoints.json"  # saved next to this script
 # ───────────────────────────────────────────────────────────────────────────────
@@ -1765,7 +1766,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"model": OLLAMA_MODEL, "port": SERVER_PORT})
         elif path == "/api/health":
             try:
-                r = requests.get("http://localhost:11434/api/tags", timeout=3)
+                r = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3)
                 ok = r.status_code == 200
             except Exception:
                 ok = False
