@@ -20,10 +20,19 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-OLLAMA_MODEL  = "llama3:latest"        # installed local model for AI grading
+OLLAMA_MODEL  = "qwen2.5:14b"          # installed local model for AI grading
 OLLAMA_URL    = "http://localhost:11434/api/generate"
 SERVER_PORT   = 5000
-SAVE_FILE     = "checkpoints.json"  # saved next to this script
+SAVE_FILE     = "checkpoints.json"     # saved next to this script
+
+# Grading tuning — adjust if your hardware is slower / faster
+LLM_NUM_PREDICT      = 120   # token budget for full prompt
+LLM_NUM_PREDICT_FAST = 80    # token budget for fallback retry
+LLM_TIMEOUT          = 45    # seconds before first timeout
+LLM_TIMEOUT_RETRY    = 75    # seconds for fallback retry
+TRUNCATE_STRENGTHS   = 120   # max chars for strengths field
+TRUNCATE_GAPS        = 150   # max chars for gaps field
+TRUNCATE_FEEDBACK    = 180   # max chars for feedback field
 # ───────────────────────────────────────────────────────────────────────────────
 
 QUESTIONS = [
@@ -272,34 +281,46 @@ SAVE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), SAVE_FILE)
 
 def load_saves():
     if os.path.exists(SAVE_PATH):
-        with open(SAVE_PATH, "r") as f:
-            data = json.load(f)
-            # Migrate old format to new
-            if not isinstance(data, dict) or 'sessions' not in data:
+        try:
+            with open(SAVE_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict) or "sessions" not in data:
                 return {"sessions": []}
             return data
+        except (json.JSONDecodeError, OSError):
+            return {"sessions": []}
     return {"sessions": []}
 
 
 def write_saves(data):
-    # Ensure sessions array exists
     if not isinstance(data, dict):
         data = {"sessions": []}
-    if "sessions" not in data:
+    if "sessions" not in data or not isinstance(data["sessions"], list):
         data["sessions"] = []
-    
-    with open(SAVE_PATH, "w") as f:
-        json.dump(data, f, indent=2)
+
+    # Atomic write: write to a temp file then rename so a crash can't corrupt the save
+    tmp_path = SAVE_PATH + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    os.replace(tmp_path, SAVE_PATH)
+
+
+def _truncate(text: str, limit: int) -> str:
+    return text[:limit] + "…" if len(text) > limit else text
 
 
 def grade_with_ollama(question: str, correct_answer: str, student_answer: str) -> dict:
-  prompt = f"""You are a strict Java instructor grading a student response.
+    # Wrap student answer in clear delimiters to reduce prompt injection risk
+    prompt = f"""You are a strict Java instructor grading a student response.
 
 QUESTION: {question}
 
 CORRECT/EXPECTED ANSWER: {correct_answer}
 
-STUDENT'S ANSWER: {student_answer}
+STUDENT'S ANSWER (grade only what is between the markers):
+<<<BEGIN_STUDENT_ANSWER>>>
+{student_answer}
+<<<END_STUDENT_ANSWER>>>
 
 Verdict rules:
 - CORRECT: mostly complete and accurate (about 85%+).
@@ -312,7 +333,7 @@ KEY_STRENGTHS: [1-2 things student got right]
 KEY_GAPS: [main missing concepts or errors]
 FEEDBACK: [brief guidance on how to improve]"""
 
-  fallback_prompt = f"""Grade this Java answer strictly.
+    fallback_prompt = f"""Grade this Java answer strictly.
 Q: {question}
 Expected: {correct_answer}
 Student: {student_answer}
@@ -322,78 +343,81 @@ KEY_STRENGTHS: short
 KEY_GAPS: short
 FEEDBACK: short"""
 
-  try:
+    try:
         payload = {
             "model": OLLAMA_MODEL,
             "prompt": prompt,
             "stream": False,
-            "options": {
-                "num_predict": 120,
-                "temperature": 0.0
-            }
+            "options": {"num_predict": LLM_NUM_PREDICT, "temperature": 0.0},
         }
         try:
-            resp = requests.post(OLLAMA_URL, json=payload, timeout=45)
+            resp = requests.post(OLLAMA_URL, json=payload, timeout=LLM_TIMEOUT)
         except requests.exceptions.Timeout:
-            # Retry once with a much shorter prompt/output budget for slower local setups.
-            retry_payload = {
-                "model": OLLAMA_MODEL,
-                "prompt": fallback_prompt,
-                "stream": False,
-                "options": {
-                    "num_predict": 80,
-                    "temperature": 0.0
+            # Retry once with a shorter prompt/budget for slower hardware
+            try:
+                retry_payload = {
+                    "model": OLLAMA_MODEL,
+                    "prompt": fallback_prompt,
+                    "stream": False,
+                    "options": {"num_predict": LLM_NUM_PREDICT_FAST, "temperature": 0.0},
                 }
-            }
-            resp = requests.post(OLLAMA_URL, json=retry_payload, timeout=75)
+                resp = requests.post(OLLAMA_URL, json=retry_payload, timeout=LLM_TIMEOUT_RETRY)
+            except Exception as retry_err:
+                return {"verdict": "ERROR", "feedback": f"Ollama timed out: {retry_err}"}
+
         resp.raise_for_status()
         text = resp.json().get("response", "")
-        
-        # Clean up thinking tags for reasoning models
+
+        # Strip thinking tags from reasoning models (e.g. deepseek-r1)
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-        
+
         # Parse structured output
-        verdict_match = re.search(r"VERDICT:\s*(CORRECT|PARTIAL|INCORRECT)", text, re.IGNORECASE)
+        verdict_match   = re.search(r"VERDICT:\s*(CORRECT|PARTIAL|INCORRECT)", text, re.IGNORECASE)
         strengths_match = re.search(r"KEY_STRENGTHS:\s*(.+?)(?=KEY_GAPS:|$)", text, re.IGNORECASE | re.DOTALL)
-        gaps_match = re.search(r"KEY_GAPS:\s*(.+?)(?=FEEDBACK:|$)", text, re.IGNORECASE | re.DOTALL)
-        feedback_match = re.search(r"FEEDBACK:\s*(.+?)$", text, re.IGNORECASE | re.DOTALL)
-        
+        gaps_match      = re.search(r"KEY_GAPS:\s*(.+?)(?=FEEDBACK:|$)", text, re.IGNORECASE | re.DOTALL)
+        feedback_match  = re.search(r"FEEDBACK:\s*(.+?)$", text, re.IGNORECASE | re.DOTALL)
+
         if verdict_match:
             verdict = verdict_match.group(1).upper()
+        elif "CORRECT" in text.upper():
+            verdict = "CORRECT"
+        elif "PARTIAL" in text.upper():
+            verdict = "PARTIAL"
         else:
-            # Fallback
-            if "CORRECT" in text.upper(): verdict = "CORRECT"
-            elif "PARTIAL" in text.upper(): verdict = "PARTIAL"
-            else: verdict = "INCORRECT"
-        
-        # Extract and clean components
+            verdict = "INCORRECT"
+
         strengths = strengths_match.group(1).strip() if strengths_match else ""
-        gaps = gaps_match.group(1).strip() if gaps_match else ""
-        feedback = feedback_match.group(1).strip() if feedback_match else ""
-        
-        # Remove common noise patterns
+        gaps      = gaps_match.group(1).strip()      if gaps_match      else ""
+        feedback  = feedback_match.group(1).strip()  if feedback_match  else ""
+
+        # Strip common list-marker noise
         for pattern in [r"^[-•*]\s*", r"^[a-z]\)", r"^[IVX]+\.\s"]:
             strengths = re.sub(pattern, "", strengths, flags=re.MULTILINE)
-            gaps = re.sub(pattern, "", gaps, flags=re.MULTILINE)
-            feedback = re.sub(pattern, "", feedback, flags=re.MULTILINE)
-        
-        # Truncate if too long
-        strengths = strengths[:120]
-        gaps = gaps[:150]
-        feedback = feedback[:180]
-        
-        # Build structured feedback message
-        feedback_output = ""
+            gaps      = re.sub(pattern, "", gaps,      flags=re.MULTILINE)
+            feedback  = re.sub(pattern, "", feedback,  flags=re.MULTILINE)
+
+        strengths = _truncate(strengths, TRUNCATE_STRENGTHS)
+        gaps      = _truncate(gaps,      TRUNCATE_GAPS)
+        feedback  = _truncate(feedback,  TRUNCATE_FEEDBACK)
+
         if verdict == "CORRECT":
-            feedback_output = f"✓ Excellent! {feedback}" if feedback else "✓ Your understanding is solid."
+            feedback_out = f"✓ Excellent! {feedback}" if feedback else "✓ Your understanding is solid."
         elif verdict == "PARTIAL":
-            feedback_output = f"◐ You're on the right track, but there are gaps:\n• Strengths: {strengths}\n• Missing: {gaps}\n• Next: {feedback}"
-        else:  # INCORRECT
-            feedback_output = f"✗ This needs more work:\n• Is missing: {gaps if gaps else 'key concepts'}\n• Review and try again: {feedback if feedback else 'revisit the material'}"
-        
-        return {"verdict": verdict, "feedback": feedback_output}
-  except Exception as e:
-    return {"verdict": "ERROR", "feedback": f"Ollama error: {str(e)}"}
+            feedback_out = (
+                f"◐ You're on the right track, but there are gaps:\n"
+                f"• Strengths: {strengths}\n• Missing: {gaps}\n• Next: {feedback}"
+            )
+        else:
+            feedback_out = (
+                f"✗ This needs more work:\n"
+                f"• Missing: {gaps or 'key concepts'}\n"
+                f"• Review: {feedback or 'revisit the material'}"
+            )
+
+        return {"verdict": verdict, "feedback": feedback_out}
+
+    except Exception as e:
+        return {"verdict": "ERROR", "feedback": f"Ollama error: {e}"}
 
 
 HTML_PAGE = """<!DOCTYPE html>
@@ -835,6 +859,14 @@ h1,h2,h3{color:var(--text)!important}
 </div>
 <script>
 const QUESTIONS = __QUESTIONS__;
+
+/* ════════════════════════════════════════════════════════════════════════
+   UTILS — safe HTML helpers
+   ════════════════════════════════════════════════════════════════════════ */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function escAttr(s) { return escHtml(s); }
 
 /* ════════════════════════════════════════════════════════════════════════
    DARK MODE
@@ -1525,12 +1557,16 @@ function renderQuestion() {
   const body = document.getElementById('q-body');
   if (q.type === 'mc') {
     const lines = q.q.split('\\n').slice(1).filter(l => l.trim());
-    body.innerHTML = lines.map((l,i) => `<button class="mc-option" onclick="checkMC(this,'${'abcd'[i]}','${q.answer}')">${l.trim()}</button>`).join('');
+    body.innerHTML = lines.map((l,i) =>
+      `<button class="mc-option" data-chosen="${'abcd'[i]}" data-correct="${escAttr(q.answer)}">${escHtml(l.trim())}</button>`
+    ).join('');
+    body.querySelectorAll('.mc-option').forEach(btn => btn.addEventListener('click', () => checkMC(btn)));
   } else if (q.type === 'tf') {
     body.innerHTML = `<div class="tf-row">
-      <button onclick="checkTF(this,'True','${q.answer}')">True</button>
-      <button onclick="checkTF(this,'False','${q.answer}')">False</button>
+      <button data-chosen="True"  data-correct="${escAttr(q.answer)}">True</button>
+      <button data-chosen="False" data-correct="${escAttr(q.answer)}">False</button>
     </div>`;
+    body.querySelectorAll('.tf-row button').forEach(btn => btn.addEventListener('click', () => checkTF(btn)));
   } else {
     body.innerHTML = `<textarea id="user-answer" placeholder="Type your answer here..."></textarea>
       <div style="margin-top:8px">
@@ -1727,7 +1763,7 @@ class Handler(BaseHTTPRequestHandler):
         pass  # suppress request logs — keep terminal clean
 
     def _cors(self):
-        self.send_header("Access-Control-Allow-Origin", "http://localhost:5000")
+        self.send_header("Access-Control-Allow-Origin", f"http://localhost:{SERVER_PORT}")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
@@ -1750,7 +1786,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def read_body(self):
         length = int(self.headers.get("Content-Length", 0))
-        return json.loads(self.rfile.read(length)) if length else {}
+        if not length:
+            return {}
+        try:
+            return json.loads(self.rfile.read(length))
+        except (json.JSONDecodeError, ValueError):
+            return None  # caller must check for None and return 400
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors()
+        self.end_headers()
 
     def do_GET(self):
         path = urlparse(self.path).path
@@ -1776,17 +1822,22 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
+        data = self.read_body()
+        if data is None:
+            self.send_json({"error": "Invalid JSON"}, status=400)
+            return
+
         if path == "/api/saves":
-            data = self.read_body()
             write_saves(data)
             self.send_json({"ok": True})
         elif path == "/api/grade":
-            data = self.read_body()
-            result = grade_with_ollama(
-                data.get("question", ""),
-                data.get("correct_answer", ""),
-                data.get("student_answer", ""),
-            )
+            question       = data.get("question", "").strip()
+            correct_answer = data.get("correct_answer", "").strip()
+            student_answer = data.get("student_answer", "").strip()
+            if not student_answer:
+                self.send_json({"error": "student_answer is required"}, status=400)
+                return
+            result = grade_with_ollama(question, correct_answer, student_answer)
             self.send_json(result)
         else:
             self.send_response(404)
