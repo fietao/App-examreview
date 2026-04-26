@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-OLLAMA_MODEL    = "qwen2.5:1.5b"         # installed local model for AI grading
+OLLAMA_MODEL    = "llama3.1:8b"          # installed local model for AI grading
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_URL      = f"{OLLAMA_BASE_URL}/api/generate"
 SERVER_PORT   = 5000
@@ -294,39 +294,33 @@ def write_saves(data):
 
 
 def grade_with_ollama(question: str, correct_answer: str, student_answer: str) -> dict:
-    prompt = f"""You are Professor Misti Clark, a highly technical and uncompromising Java instructor. Grade the student response below with extreme precision.
-
-GRADING RULES — enforce every single one:
-1. SYNTAX ZERO TOLERANCE: Deduct points for any lowercase class names (e.g., "string" instead of "String", "integer" instead of "Integer"). Deduct for missing semicolons or braces.
-2. TERMINOLOGY STRICTNESS: If the student says "getter" or "setter", deduct points and correct them — the proper terms are Accessor and Mutator. "Method" vs "function" distinction matters.
-3. INHERITANCE RIGOR (Chapter 10): In any constructor of a subclass, super() MUST be the very first statement. Every overridden method MUST have @Override annotation. Deduct if missing.
-4. ACCESS MODIFIERS: Fields should be private. Methods should have explicit access modifiers. Deduct for any missing modifier.
-5. toString() FORMAT: Must have clear labels and spacing. Deduct if sloppy.
-6. COMPLETENESS: If the answer "works" but is missing technical precision, do NOT give full marks.
+    prompt = f"""You are Professor Misti Clark, a strict Java professor. Compare the student answer to the expected answer carefully.
 
 QUESTION: {question}
-
 EXPECTED ANSWER: {correct_answer}
+STUDENT ANSWER: {student_answer}
 
-STUDENT'S ANSWER: {student_answer}
+Grading rules:
+- CORRECT: student covered all or nearly all key concepts from the expected answer
+- PARTIAL: student got some concepts right but missed important parts
+- INCORRECT: student missed most concepts or stated something fundamentally wrong
+- If the student used "getter" or "setter", note they should say Accessor or Mutator
+- If code is involved: check that class names are capitalized, super() is first in constructors, @Override is on overridden methods, fields are private
+- Only flag issues that are actually present in the student answer
 
-Respond in EXACTLY this format (no extra lines):
-SCORE: [0-100]
-VERDICT: [CORRECT if score>=85 / PARTIAL if score 50-84 / INCORRECT if score<50]
-STRENGTHS: [what the student got right]
-DEDUCTIONS: [list every deduction with reason, e.g. "-5: used 'string' instead of 'String'"]
-FEEDBACK: [detailed professor explanation of every error and how to fix it]"""
+Return ONLY these 3 lines, nothing else:
+VERDICT: [CORRECT/PARTIAL/INCORRECT]
+MISSING: [what the student missed or got wrong — be specific and clear]
+FEEDBACK: [2-3 plain sentences helping the student understand and improve]"""
 
-    fallback_prompt = f"""You are Professor Misti Clark, strict Java grader.
-Q: {question}
-Expected: {correct_answer}
-Student: {student_answer}
-Reply in exactly this format:
-SCORE: [0-100]
+    fallback_prompt = f"""Grade this Java answer as Professor Misti Clark.
+QUESTION: {question}
+EXPECTED: {correct_answer}
+STUDENT: {student_answer}
+Return only:
 VERDICT: CORRECT or PARTIAL or INCORRECT
-STRENGTHS: brief
-DEDUCTIONS: list deductions
-FEEDBACK: brief explanation"""
+MISSING: what was wrong or missing
+FEEDBACK: how to improve"""
 
     try:
         payload = {
@@ -334,7 +328,7 @@ FEEDBACK: brief explanation"""
             "prompt": prompt,
             "stream": False,
             "options": {
-                "num_predict": 500,
+                "num_predict": 250,
                 "temperature": 0.0
             }
         }
@@ -346,7 +340,7 @@ FEEDBACK: brief explanation"""
                 "prompt": fallback_prompt,
                 "stream": False,
                 "options": {
-                    "num_predict": 250,
+                    "num_predict": 150,
                     "temperature": 0.0
                 }
             }
@@ -357,52 +351,43 @@ FEEDBACK: brief explanation"""
         # Strip thinking tags from reasoning models
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
-        # Parse fields
-        score_match      = re.search(r"SCORE:\s*(\d+)", text, re.IGNORECASE)
-        verdict_match    = re.search(r"VERDICT:\s*(CORRECT|PARTIAL|INCORRECT)", text, re.IGNORECASE)
-        strengths_match  = re.search(r"STRENGTHS:\s*(.+?)(?=DEDUCTIONS:|FEEDBACK:|$)", text, re.IGNORECASE | re.DOTALL)
-        deductions_match = re.search(r"DEDUCTIONS:\s*(.+?)(?=FEEDBACK:|$)", text, re.IGNORECASE | re.DOTALL)
-        feedback_match   = re.search(r"FEEDBACK:\s*(.+?)$", text, re.IGNORECASE | re.DOTALL)
-
-        score = int(score_match.group(1)) if score_match else None
+        # Parse fields — model only returns VERDICT, MISSING, FEEDBACK
+        verdict_match = re.search(r"VERDICT:\s*(CORRECT|PARTIAL|INCORRECT)", text, re.IGNORECASE)
+        missing_match = re.search(r"MISSING:\s*(.+?)(?=FEEDBACK:|$)", text, re.IGNORECASE | re.DOTALL)
+        feedback_match = re.search(r"FEEDBACK:\s*(.+?)$", text, re.IGNORECASE | re.DOTALL)
 
         if verdict_match:
             verdict = verdict_match.group(1).upper()
-        elif score is not None:
-            verdict = "CORRECT" if score >= 85 else ("PARTIAL" if score >= 50 else "INCORRECT")
         else:
             verdict = "CORRECT" if "CORRECT" in text.upper() else ("PARTIAL" if "PARTIAL" in text.upper() else "INCORRECT")
 
-        strengths  = strengths_match.group(1).strip()  if strengths_match  else ""
-        deductions = deductions_match.group(1).strip() if deductions_match else ""
-        feedback   = feedback_match.group(1).strip()   if feedback_match   else ""
+        missing  = missing_match.group(1).strip()  if missing_match  else ""
+        feedback = feedback_match.group(1).strip()  if feedback_match else ""
 
-        # Build rich feedback display
-        score_label = f"Score: {score}/100" if score is not None else ""
+        # Score derived from verdict (not from model — small models miscalculate)
+        score = {"CORRECT": 92, "PARTIAL": 65, "INCORRECT": 20}.get(verdict, 20)
+
+        # Build clear feedback display
         lines = []
-        if score_label:
-            lines.append(f"📊 {score_label}")
+        lines.append(f"📊 Score: {score}/100")
         if verdict == "CORRECT":
-            lines.append(f"✓ {strengths or 'Answer meets expectations.'}")
-            if deductions:
-                lines.append(f"\n⚠ Minor deductions:\n{deductions}")
+            lines.append("✓ Great job — you covered the key concepts.")
+            if missing and missing.lower() not in ("none", "nothing", "n/a"):
+                lines.append(f"\n⚠ Minor note: {missing}")
             if feedback:
-                lines.append(f"\n📝 Prof. Clark's notes: {feedback}")
+                lines.append(f"\n📝 Prof. Clark: {feedback}")
         elif verdict == "PARTIAL":
-            lines.append(f"◐ Partially correct — review required:")
-            if strengths:
-                lines.append(f"\n✓ What you got right: {strengths}")
-            if deductions:
-                lines.append(f"\n✗ Deductions:\n{deductions}")
+            lines.append("◐ Partially correct — some important concepts are missing.")
+            if missing:
+                lines.append(f"\n✗ What you missed: {missing}")
             if feedback:
-                lines.append(f"\n📝 Prof. Clark says: {feedback}")
+                lines.append(f"\n📝 Prof. Clark: {feedback}")
         else:
-            lines.append("✗ Unsatisfactory — significant errors found:")
-            if deductions:
-                lines.append(f"\n✗ Deductions:\n{deductions}")
+            lines.append("✗ Needs significant improvement.")
+            if missing:
+                lines.append(f"\n✗ What was wrong or missing: {missing}")
             if feedback:
-                lines.append(f"\n📝 Prof. Clark says: {feedback}")
-
+                lines.append(f"\n📝 Prof. Clark: {feedback}")
         return {"verdict": verdict, "feedback": "\n".join(lines), "score": score}
     except Exception as e:
         return {"verdict": "ERROR", "feedback": f"Ollama error: {str(e)}", "score": None}
