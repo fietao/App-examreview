@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-OLLAMA_MODEL    = "llama3:latest"        # installed local model for AI grading
+OLLAMA_MODEL    = "qwen2.5:1.5b"         # installed local model for AI grading
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_URL      = f"{OLLAMA_BASE_URL}/api/generate"
 SERVER_PORT   = 5000
@@ -294,107 +294,118 @@ def write_saves(data):
 
 
 def grade_with_ollama(question: str, correct_answer: str, student_answer: str) -> dict:
-  prompt = f"""You are a strict Java instructor grading a student response.
+    prompt = f"""You are Professor Misti Clark, a highly technical and uncompromising Java instructor. Grade the student response below with extreme precision.
+
+GRADING RULES — enforce every single one:
+1. SYNTAX ZERO TOLERANCE: Deduct points for any lowercase class names (e.g., "string" instead of "String", "integer" instead of "Integer"). Deduct for missing semicolons or braces.
+2. TERMINOLOGY STRICTNESS: If the student says "getter" or "setter", deduct points and correct them — the proper terms are Accessor and Mutator. "Method" vs "function" distinction matters.
+3. INHERITANCE RIGOR (Chapter 10): In any constructor of a subclass, super() MUST be the very first statement. Every overridden method MUST have @Override annotation. Deduct if missing.
+4. ACCESS MODIFIERS: Fields should be private. Methods should have explicit access modifiers. Deduct for any missing modifier.
+5. toString() FORMAT: Must have clear labels and spacing. Deduct if sloppy.
+6. COMPLETENESS: If the answer "works" but is missing technical precision, do NOT give full marks.
 
 QUESTION: {question}
 
-CORRECT/EXPECTED ANSWER: {correct_answer}
+EXPECTED ANSWER: {correct_answer}
 
 STUDENT'S ANSWER: {student_answer}
 
-Verdict rules:
-- CORRECT: mostly complete and accurate (about 85%+).
-- PARTIAL: some correct ideas but important gaps/errors.
-- INCORRECT: mostly wrong or missing core concept.
+Respond in EXACTLY this format (no extra lines):
+SCORE: [0-100]
+VERDICT: [CORRECT if score>=85 / PARTIAL if score 50-84 / INCORRECT if score<50]
+STRENGTHS: [what the student got right]
+DEDUCTIONS: [list every deduction with reason, e.g. "-5: used 'string' instead of 'String'"]
+FEEDBACK: [detailed professor explanation of every error and how to fix it]"""
 
-Return EXACTLY 4 lines:
-VERDICT: [CORRECT/PARTIAL/INCORRECT]
-KEY_STRENGTHS: [1-2 things student got right]
-KEY_GAPS: [main missing concepts or errors]
-FEEDBACK: [brief guidance on how to improve]"""
-
-  fallback_prompt = f"""Grade this Java answer strictly.
+    fallback_prompt = f"""You are Professor Misti Clark, strict Java grader.
 Q: {question}
 Expected: {correct_answer}
 Student: {student_answer}
-Return exactly:
+Reply in exactly this format:
+SCORE: [0-100]
 VERDICT: CORRECT or PARTIAL or INCORRECT
-KEY_STRENGTHS: short
-KEY_GAPS: short
-FEEDBACK: short"""
+STRENGTHS: brief
+DEDUCTIONS: list deductions
+FEEDBACK: brief explanation"""
 
-  try:
+    try:
         payload = {
             "model": OLLAMA_MODEL,
             "prompt": prompt,
             "stream": False,
             "options": {
-                "num_predict": 120,
+                "num_predict": 500,
                 "temperature": 0.0
             }
         }
         try:
-            resp = requests.post(OLLAMA_URL, json=payload, timeout=45)
+            resp = requests.post(OLLAMA_URL, json=payload, timeout=60)
         except requests.exceptions.Timeout:
-            # Retry once with a much shorter prompt/output budget for slower local setups.
             retry_payload = {
                 "model": OLLAMA_MODEL,
                 "prompt": fallback_prompt,
                 "stream": False,
                 "options": {
-                    "num_predict": 80,
+                    "num_predict": 250,
                     "temperature": 0.0
                 }
             }
-            resp = requests.post(OLLAMA_URL, json=retry_payload, timeout=75)
+            resp = requests.post(OLLAMA_URL, json=retry_payload, timeout=90)
         resp.raise_for_status()
         text = resp.json().get("response", "")
-        
-        # Clean up thinking tags for reasoning models
+
+        # Strip thinking tags from reasoning models
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-        
-        # Parse structured output
-        verdict_match = re.search(r"VERDICT:\s*(CORRECT|PARTIAL|INCORRECT)", text, re.IGNORECASE)
-        strengths_match = re.search(r"KEY_STRENGTHS:\s*(.+?)(?=KEY_GAPS:|$)", text, re.IGNORECASE | re.DOTALL)
-        gaps_match = re.search(r"KEY_GAPS:\s*(.+?)(?=FEEDBACK:|$)", text, re.IGNORECASE | re.DOTALL)
-        feedback_match = re.search(r"FEEDBACK:\s*(.+?)$", text, re.IGNORECASE | re.DOTALL)
-        
+
+        # Parse fields
+        score_match      = re.search(r"SCORE:\s*(\d+)", text, re.IGNORECASE)
+        verdict_match    = re.search(r"VERDICT:\s*(CORRECT|PARTIAL|INCORRECT)", text, re.IGNORECASE)
+        strengths_match  = re.search(r"STRENGTHS:\s*(.+?)(?=DEDUCTIONS:|FEEDBACK:|$)", text, re.IGNORECASE | re.DOTALL)
+        deductions_match = re.search(r"DEDUCTIONS:\s*(.+?)(?=FEEDBACK:|$)", text, re.IGNORECASE | re.DOTALL)
+        feedback_match   = re.search(r"FEEDBACK:\s*(.+?)$", text, re.IGNORECASE | re.DOTALL)
+
+        score = int(score_match.group(1)) if score_match else None
+
         if verdict_match:
             verdict = verdict_match.group(1).upper()
+        elif score is not None:
+            verdict = "CORRECT" if score >= 85 else ("PARTIAL" if score >= 50 else "INCORRECT")
         else:
-            # Fallback
-            if "CORRECT" in text.upper(): verdict = "CORRECT"
-            elif "PARTIAL" in text.upper(): verdict = "PARTIAL"
-            else: verdict = "INCORRECT"
-        
-        # Extract and clean components
-        strengths = strengths_match.group(1).strip() if strengths_match else ""
-        gaps = gaps_match.group(1).strip() if gaps_match else ""
-        feedback = feedback_match.group(1).strip() if feedback_match else ""
-        
-        # Remove common noise patterns
-        for pattern in [r"^[-•*]\s*", r"^[a-z]\)", r"^[IVX]+\.\s"]:
-            strengths = re.sub(pattern, "", strengths, flags=re.MULTILINE)
-            gaps = re.sub(pattern, "", gaps, flags=re.MULTILINE)
-            feedback = re.sub(pattern, "", feedback, flags=re.MULTILINE)
-        
-        # Truncate if too long
-        strengths = strengths[:120]
-        gaps = gaps[:150]
-        feedback = feedback[:180]
-        
-        # Build structured feedback message
-        feedback_output = ""
+            verdict = "CORRECT" if "CORRECT" in text.upper() else ("PARTIAL" if "PARTIAL" in text.upper() else "INCORRECT")
+
+        strengths  = strengths_match.group(1).strip()  if strengths_match  else ""
+        deductions = deductions_match.group(1).strip() if deductions_match else ""
+        feedback   = feedback_match.group(1).strip()   if feedback_match   else ""
+
+        # Build rich feedback display
+        score_label = f"Score: {score}/100" if score is not None else ""
+        lines = []
+        if score_label:
+            lines.append(f"📊 {score_label}")
         if verdict == "CORRECT":
-            feedback_output = f"✓ Excellent! {feedback}" if feedback else "✓ Your understanding is solid."
+            lines.append(f"✓ {strengths or 'Answer meets expectations.'}")
+            if deductions:
+                lines.append(f"\n⚠ Minor deductions:\n{deductions}")
+            if feedback:
+                lines.append(f"\n📝 Prof. Clark's notes: {feedback}")
         elif verdict == "PARTIAL":
-            feedback_output = f"◐ You're on the right track, but there are gaps:\n• Strengths: {strengths}\n• Missing: {gaps}\n• Next: {feedback}"
-        else:  # INCORRECT
-            feedback_output = f"✗ This needs more work:\n• Is missing: {gaps if gaps else 'key concepts'}\n• Review and try again: {feedback if feedback else 'revisit the material'}"
-        
-        return {"verdict": verdict, "feedback": feedback_output}
-  except Exception as e:
-    return {"verdict": "ERROR", "feedback": f"Ollama error: {str(e)}"}
+            lines.append(f"◐ Partially correct — review required:")
+            if strengths:
+                lines.append(f"\n✓ What you got right: {strengths}")
+            if deductions:
+                lines.append(f"\n✗ Deductions:\n{deductions}")
+            if feedback:
+                lines.append(f"\n📝 Prof. Clark says: {feedback}")
+        else:
+            lines.append("✗ Unsatisfactory — significant errors found:")
+            if deductions:
+                lines.append(f"\n✗ Deductions:\n{deductions}")
+            if feedback:
+                lines.append(f"\n📝 Prof. Clark says: {feedback}")
+
+        return {"verdict": verdict, "feedback": "\n".join(lines), "score": score}
+    except Exception as e:
+        return {"verdict": "ERROR", "feedback": f"Ollama error: {str(e)}", "score": None}
 
 
 HTML_PAGE = """<!DOCTYPE html>
