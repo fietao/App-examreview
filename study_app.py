@@ -5,7 +5,7 @@ Runs locally with Ollama for AI grading.
 Usage:
     python study_app.py
 
-Config: edit the variables below to change model or port.
+Config: Copy .env.example to .env and customize as needed.
 """
 
 import json
@@ -18,14 +18,30 @@ from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, urlparse
 
 import requests
+from dotenv import load_dotenv
+
+# Load configuration from .env file (or use defaults)
+load_dotenv()
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-OLLAMA_MODEL    = "llama3.1:8b"          # installed local model for AI grading
-OLLAMA_BASE_URL = "http://localhost:11434"
+# Read from environment variables with sensible defaults
+OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL", "qwen2.5:14b")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_URL      = f"{OLLAMA_BASE_URL}/api/generate"
-SERVER_PORT   = 5000
-SAVE_FILE     = "checkpoints.json"  # saved next to this script
+SERVER_HOST     = os.getenv("SERVER_HOST", "127.0.0.1")
+SERVER_PORT     = int(os.getenv("SERVER_PORT", 5000))
+SAVE_FILE       = os.getenv("SAVE_FILE", "checkpoints.json")
+DEBUG_MODE      = os.getenv("DEBUG_MODE", "false").lower() == "true"
+AUTO_OPEN_BROWSER = os.getenv("AUTO_OPEN_BROWSER", "true").lower() == "true"
 # ───────────────────────────────────────────────────────────────────────────────
+
+if DEBUG_MODE:
+    print(f"DEBUG: OLLAMA_MODEL={OLLAMA_MODEL}")
+    print(f"DEBUG: OLLAMA_BASE_URL={OLLAMA_BASE_URL}")
+    print(f"DEBUG: SERVER_HOST={SERVER_HOST}")
+    print(f"DEBUG: SERVER_PORT={SERVER_PORT}")
+    print(f"DEBUG: SAVE_FILE={SAVE_FILE}")
+
 
 QUESTIONS = [
   {"ch":6,"type":"mc","q":"This is a collection of programming statements that specify the fields and methods that a particular type of object may have.\na) class\nb) method\nc) parameter\nd) instance","answer":"a","explain":"A class is the blueprint that defines what fields and methods objects of that type will have."},
@@ -1800,25 +1816,39 @@ def main():
     print("  Make sure Ollama is running: ollama serve")
     print(f"  Make sure model is pulled:  ollama pull {OLLAMA_MODEL}")
     print("=" * 50)
+    print(f"\n  Server config:")
+    print(f"    Host: {SERVER_HOST}")
+    print(f"    Port: {SERVER_PORT}")
+    print(f"    Model: {OLLAMA_MODEL}")
 
     class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
         daemon_threads = True
 
-    server = ThreadedHTTPServer(("localhost", SERVER_PORT), Handler)
+    server = ThreadedHTTPServer((SERVER_HOST, SERVER_PORT), Handler)
 
     def open_browser():
         import time
         time.sleep(0.8)
-        webbrowser.open(f"http://localhost:{SERVER_PORT}")
+        # Determine the URL based on configured host
+        if SERVER_HOST == "0.0.0.0":
+            url = f"http://localhost:{SERVER_PORT}"
+        else:
+            url = f"http://{SERVER_HOST}:{SERVER_PORT}"
+        
+        if AUTO_OPEN_BROWSER:
+            webbrowser.open(url)
+        else:
+            print(f"\n  Open your browser to: {url}")
 
     threading.Thread(target=open_browser, daemon=True).start()
 
-    print(f"\n  Opening browser... Press Ctrl+C to stop.\n")
+    print(f"\n  Press Ctrl+C to stop.\n")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n  Server stopped. Your checkpoints are saved.")
         server.server_close()
+
 
 
 if __name__ == "__main__":

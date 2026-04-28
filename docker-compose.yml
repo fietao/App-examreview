@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # Ollama AI service (LLM backend)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: java-study-ollama
+    ports:
+      - "11434:11434"
+    environment:
+      # You can set a different model here
+      # MODEL: qwen2.5:7b  # For lighter systems
+      MODEL: qwen2.5:14b   # Balanced (recommended)
+      # MODEL: qwen2.5:32b  # For high-end systems (needs 24GB RAM)
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # Optional: Uncomment to limit resources
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 8G
+
+  # Java Study App web service
+  study_app:
+    build: .
+    container_name: java-study-app
+    ports:
+      - "5000:5000"
+    environment:
+      # Point to Ollama service (use service name as hostname in docker network)
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:14b
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 5000
+      AUTO_OPEN_BROWSER: 'false'
+      DEBUG_MODE: 'false'
+    volumes:
+      - ./checkpoints.json:/app/checkpoints.json
+      - ./questions.json:/app/questions.json
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    # Optional: Uncomment to limit resources
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1'
+    #       memory: 2G
+
+volumes:
+  # Persist Ollama models between container restarts
+  ollama_data:
+    driver: local
