@@ -9,6 +9,9 @@ Config: Copy .env.example to .env and customize as needed.
 """
 
 import json
+#import json mean to import the json module, which provides functions
+# for working with JSON data. In this code, it is used to convert the QUESTIONS
+#  list into a JSON string that can be embedded in the HTML page.
 import os
 import re
 import threading
@@ -48,10 +51,10 @@ QUESTIONS = [
   {"ch":6,"type":"mc","q":"A class is analogous to a(n) __________.\na) house\nb) blueprint\nc) drafting table\nd) architect","answer":"b","explain":"A class defines the structure — like a blueprint defines how to build a house, but is not the house itself."},
   {"ch":6,"type":"mc","q":"An object is a(n) __________.\na) blueprint\nb) primitive data type\nc) variable\nd) instance of a class","answer":"d","explain":"An object is a concrete thing created from a class using 'new'."},
   {"ch":6,"type":"mc","q":"This is a class member that holds data.\na) method\nb) instance\nc) field\nd) constructor","answer":"c","explain":"Fields (instance variables) store the data/state of an object."},
-  {"ch":6,"type":"mc","q":"This keyword causes an object to be created in memory.\na) create\nb) new\nc) object\nd) construct","answer":"b","explain":"The 'new' keyword allocates memory and calls the constructor to initialize the object."},
+  {"ch":6,"type":"mc","q":"Which keyword allocates memory for a new object and calls its constructor?\na) make\nb) new\nc) create\nd) allocate","answer":"b","explain":"Only 'new' is the correct keyword. It triggers memory allocation and constructor execution. The others are not Java keywords."},
   {"ch":6,"type":"mc","q":"This is a method that gets a value from a class's field, but does not change it.\na) accessor\nb) constructor\nc) void\nd) mutator","answer":"a","explain":"Accessors (getters) return field values without modifying them."},
   {"ch":6,"type":"mc","q":"This is a method that stores a value in a field or changes the value of a field.\na) accessor\nb) constructor\nc) void\nd) mutator","answer":"d","explain":"Mutators (setters) change the value of a field."},
-  {"ch":6,"type":"mc","q":"When the value of an item is dependent on other data and is not updated when that data changes, the value has become __________.\na) bitter\nb) stale\nc) asynchronous\nd) moldy","answer":"b","explain":"A stale value is out of date because it wasn't recalculated after related data changed."},
+  {"ch":6,"type":"mc","q":"When a calculated value becomes out of date because related data changed and was not recalculated, the value is said to be __________.\na) cached\nb) stale\nc) inconsistent\nd) deprecated","answer":"b","explain":"A stale value is outdated. It was correct at one time but is now wrong because the data it depends on changed."},
   {"ch":6,"type":"mc","q":"This is a method that is automatically called when an instance of a class is created.\na) accessor\nb) constructor\nc) void\nd) mutator","answer":"b","explain":"Constructors share the class name and run automatically when you use 'new'."},
   {"ch":6,"type":"mc","q":"When a local variable has the same name as a field, the local variable's name does this to the field's name.\na) shadows\nb) complements\nc) deletes\nd) merges with","answer":"a","explain":"Shadowing means the local variable hides the field. Use 'this.fieldName' to refer to the field."},
   {"ch":6,"type":"mc","q":"This is automatically provided for a class if you do not write one yourself.\na) accessor method\nb) default instance\nc) default constructor\nd) variable declaration","answer":"c","explain":"Java provides a no-arg default constructor only if you haven't written any constructor yourself."},
@@ -85,17 +88,17 @@ QUESTIONS = [
   {"ch":7,"type":"mc","q":"The last subscript in an array is always __________.\na) 100\nb) 0\nc) -1\nd) 1 less than the number of elements","answer":"d","explain":"If an array has 10 elements, valid subscripts are 0-9. Last is always length - 1."},
   {"ch":7,"type":"mc","q":"Array bounds checking happens __________.\na) when the program is compiled\nb) when the program is saved\nc) when the program runs\nd) when the program is loaded into memory","answer":"c","explain":"The compiler doesn't catch out-of-bounds subscripts. Java throws ArrayIndexOutOfBoundsException at runtime."},
   {"ch":7,"type":"mc","q":"This array field holds the number of elements that the array has.\na) size\nb) elements\nc) length\nd) width","answer":"c","explain":"Every Java array has a .length field (no parentheses) that returns the number of elements."},
-  {"ch":7,"type":"mc","q":"This search algorithm steps through an array, comparing each item with the search value.\na) binary search\nb) sequential search\nc) selection search\nd) iterative search","answer":"b","explain":"Sequential (linear) search checks each element one by one from the start."},
-  {"ch":7,"type":"mc","q":"This search algorithm repeatedly divides the portion of an array being searched in half.\na) binary search\nb) sequential search\nc) selection search\nd) iterative search","answer":"a","explain":"Binary search requires a sorted array and cuts the search space in half each step."},
-  {"ch":7,"type":"mc","q":"To insert an item at a specific location in an ArrayList object, you use this method.\na) store\nb) insert\nc) add\nd) get","answer":"c","explain":"ArrayList.add(index, element) inserts at a specific position."},
-  {"ch":7,"type":"mc","q":"To delete an item from an ArrayList object, you use this method.\na) remove\nb) delete\nc) erase\nd) get","answer":"a","explain":"ArrayList.remove(index) or ArrayList.remove(object) deletes an element and shifts the rest."},
+  {"ch":7,"type":"mc","q":"This search algorithm starts at the beginning and checks each element in order.\na) binary search\nb) linear search\nc) selection search\nd) iterative search","answer":"b","explain":"Linear (sequential) search is simple: start at index 0 and check elements one-by-one until the target is found."},
+  {"ch":7,"type":"mc","q":"This search algorithm requires a sorted array and eliminates half the remaining elements with each comparison.\na) linear search\nb) sequential search\nc) binary search\nd) interpolation search","answer":"c","explain":"Binary search is fast (O log n) but only works on sorted data. It divides the search space in half each iteration."},
+  {"ch":7,"type":"mc","q":"To insert an item at a specific position in an ArrayList, you use this method.\na) put\nb) insert\nc) add\nd) append","answer":"c","explain":"ArrayList.add(index, element) inserts at the specified index. The add() method also works without an index to append."},
+  {"ch":7,"type":"mc","q":"To delete an item from an ArrayList, you use this method.\na) drop\nb) delete\nc) remove\nd) pop","answer":"c","explain":"ArrayList.remove(index) or ArrayList.remove(object) deletes an element. Note: Java uses 'remove', not 'delete'."},
   {"ch":7,"type":"mc","q":"To determine the number of items stored in an ArrayList object, you use this method.\na) size\nb) capacity\nc) items\nd) length","answer":"a","explain":"ArrayList uses .size() (a method). Arrays use .length (a field)."},
-  {"ch":7,"type":"tf","q":"Java does not allow a statement to use a subscript that is outside the range of valid subscripts for an array.","answer":"True","explain":"Java throws ArrayIndexOutOfBoundsException at runtime for invalid subscripts."},
+  {"ch":7,"type":"tf","q":"Java throws an exception if you attempt to access an array element with an out-of-bounds subscript.","answer":"True","explain":"Java enforces array bounds — accessing an invalid index throws ArrayIndexOutOfBoundsException at runtime."},
   {"ch":7,"type":"tf","q":"An array's size declarator can be a negative integer expression.","answer":"False","explain":"Array size must be zero or positive. A negative size causes a NegativeArraySizeException."},
   {"ch":7,"type":"tf","q":"Both of the following declarations are legal and equivalent: int[] numbers; and int numbers[];","answer":"True","explain":"Both syntaxes are valid Java. The first style (type[]) is more commonly used."},
   {"ch":7,"type":"tf","q":"The subscript of the last element in a single-dimensional array is one less than the total number of elements in the array.","answer":"True","explain":"If length = 10, last valid index = 9 = 10 - 1."},
   {"ch":7,"type":"tf","q":"The values in an initialization list are stored in the array in the order that they appear in the list.","answer":"True","explain":"int[] arr = {5, 3, 8}; -> arr[0]=5, arr[1]=3, arr[2]=8. Order is preserved."},
-  {"ch":7,"type":"tf","q":"The Java compiler does not display an error message when it processes a statement that uses an invalid subscript.","answer":"True","explain":"Invalid subscripts are a runtime error, not a compile-time error."},
+  {"ch":7,"type":"tf","q":"The Java compiler does not report an error when code uses an invalid array subscript.","answer":"True","explain":"Out-of-bounds subscripts are a runtime error, not a compile-time error. The compiler can't always know which subscripts are invalid."},
   {"ch":7,"type":"tf","q":"When an array is passed to a method, the method has access to the original array.","answer":"True","explain":"Arrays are passed by reference — the method gets the address of the same array."},
   {"ch":7,"type":"tf","q":"The first size declarator in the declaration of a two-dimensional array represents the number of columns.","answer":"False","explain":"First = rows, second = columns. Example: int[5][3] = 5 rows, 3 columns."},
   {"ch":7,"type":"tf","q":"An ArrayList automatically expands in size to accommodate the items stored in it.","answer":"True","explain":"Unlike arrays, ArrayList resizes itself automatically when you add more elements."},
@@ -122,8 +125,8 @@ QUESTIONS = [
   {"ch":8,"type":"mc","q":"This enum method returns the position of an enum constant in the declaration.\na) position\nb) location\nc) ordinal\nd) toString","answer":"c","explain":"ordinal() returns the zero-based position. Example: if SPRING is first, SPRING.ordinal() returns 0."},
   {"ch":8,"type":"mc","q":"Assuming: enum Seasons { SPRING, WINTER, SUMMER, FALL } — what is the fully qualified name of the FALL constant?\na) FALL\nb) enum.FALL\nc) FALL.Seasons\nd) Seasons.FALL","answer":"d","explain":"Fully qualified name = EnumTypeName.CONSTANT_NAME."},
   {"ch":8,"type":"mc","q":"The Java Virtual Machine periodically performs this process, which automatically removes unreferenced objects from memory.\na) memory cleansing\nb) memory deallocation\nc) garbage collection\nd) object expungement","answer":"c","explain":"The JVM's garbage collector automatically frees memory for unreachable objects."},
-  {"ch":8,"type":"mc","q":"CRC stands for:\na) Class, Return value, Composition\nb) Class, Responsibilities, Collaborations\nc) Class, Responsibilities, Composition\nd) Compare, Return, Continue","answer":"b","explain":"CRC cards: Class name, what it's Responsible for, and which classes it Collaborates with."},
-  {"ch":8,"type":"tf","q":"A static member method may refer to non-static member variables of the same class, but only after an instance of the class has been defined.","answer":"False","explain":"Static methods can NEVER directly access non-static fields, regardless of whether an instance exists."},
+  {"ch":8,"type":"mc","q":"CRC stands for:\na) Class, Relationships, Composition\nb) Class, Responsibilities, Collaborators\nc) Characteristics, Responsibilities, Classes\nd) Components, References, Cohesion","answer":"b","explain":"CRC cards help you identify: what Class you're designing, what it's Responsible for, and which classes it Collaborates with."},
+  {"ch":8,"type":"tf","q":"A static method can access non-static member variables directly.","answer":"False","explain":"Static methods have no 'this' reference. They can NEVER directly access instance fields, even if objects exist."},
   {"ch":8,"type":"tf","q":"All static member variables are initialized to -1 by default.","answer":"False","explain":"Numeric variables default to 0, booleans to false, and object references to null. Not -1."},
   {"ch":8,"type":"tf","q":"When an object is passed as an argument to a method, the method can access the argument.","answer":"True","explain":"The method receives a reference to the object and can read/modify it through that reference."},
   {"ch":8,"type":"tf","q":"A method cannot return a reference to an object.","answer":"False","explain":"Methods can return any type including object references."},
@@ -143,15 +146,15 @@ QUESTIONS = [
   {"ch":8,"type":"sa","q":"What happens if you attempt to call a method using a reference variable that is set to null?","answer":"A NullPointerException is thrown at runtime. null means the variable doesn't point to any object, so you can't call a method on nothing.","explain":"null reference -> NullPointerException."},
   {"ch":9,"type":"mc","q":"The isDigit, isLetter, and isLetterOrDigit methods are members of this class.\na) String\nb) Char\nc) Character\nd) StringBuilder","answer":"c","explain":"The Character class (wrapper for char) contains static methods for testing individual characters."},
   {"ch":9,"type":"mc","q":"This method converts a character to uppercase.\na) makeUpperCase\nb) toUpperCase\nc) isUpperCase\nd) upperCase","answer":"b","explain":"Character.toUpperCase(ch) returns the uppercase version of the given char."},
-  {"ch":9,"type":"mc","q":"This String class method returns true if the calling string's length is 0 or it contains only whitespace characters.\na) isEmpty\nb) isBlank\nc) isNull\nd) isVoid","answer":"b","explain":"isBlank() is true for empty strings AND strings with only spaces/tabs. Added in Java 11."},
-  {"ch":9,"type":"mc","q":"This String class method returns true if the calling string's length is 0, but returns false if it contains only whitespace characters.\na) isEmpty\nb) isBlank\nc) isNull\nd) isVoid","answer":"a","explain":"isEmpty() only checks if length == 0. A string of spaces has length > 0, so isEmpty() returns false."},
+  {"ch":9,"type":"mc","q":"Which String method returns true for empty strings AND for strings that contain only whitespace characters like spaces or tabs?\na) isEmpty\nb) isBlank\nc) isWhitespace\nd) trim()","answer":"b","explain":"isBlank() returns true for either empty strings or strings with only whitespace. isEmpty() only returns true if length == 0."},
+  {"ch":9,"type":"mc","q":"Which String method returns true if the calling string is empty (length = 0) but returns false if it contains only whitespace?\na) isBlank\nb) isEmpty\nc) isWhitespace\nd) trim().isEmpty()","answer":"b","explain":"isEmpty() checks only the length. A string with spaces like \" \" has length > 0, so isEmpty() returns false."},
   {"ch":9,"type":"mc","q":"This String class method returns true if the calling String object contains a specified substring.\na) matches\nb) isOwnerOf\nc) substring\nd) contains","answer":"d","explain":"str.contains(\"hello\") returns true if \"hello\" appears anywhere in str."},
   {"ch":9,"type":"mc","q":"This String class method performs the same operation as the + operator when used on strings.\na) add\nb) join\nc) concat\nd) plus","answer":"c","explain":"str.concat(\"world\") appends the argument and returns a new String."},
   {"ch":9,"type":"mc","q":"This String class method returns a string with the calling String repeated a specified number of times.\na) replicate\nb) duplicate\nc) copy_n\nd) repeat","answer":"d","explain":"\"abc\".repeat(3) returns \"abcabcabc\". Added in Java 11."},
   {"ch":9,"type":"mc","q":"The String class has a method that accepts any primitive data type and returns a string representation. The name is __________.\na) stringValue\nb) valueOf\nc) getString\nd) valToString","answer":"b","explain":"String.valueOf(42) returns \"42\". Works with int, double, char, boolean, etc."},
   {"ch":9,"type":"mc","q":"If you do not pass an argument to the StringBuilder constructor, the object will have enough memory to store this many characters.\na) 16\nb) 1\nc) 256\nd) Unlimited","answer":"a","explain":"Default StringBuilder capacity is 16 characters. It auto-expands as needed."},
   {"ch":9,"type":"mc","q":"To change the value of a specific character in a StringBuilder object, use this method.\na) changeCharAt\nb) setCharAt\nc) setChar\nd) change","answer":"b","explain":"sb.setCharAt(index, newChar) replaces the character at the given index."},
-  {"ch":9,"type":"mc","q":"To delete a specific character in a StringBuilder object, use this method.\na) deleteCharAt\nb) removeCharAt\nc) removeChar\nd) expunge","answer":"a","explain":"sb.deleteCharAt(index) removes the character at that position and shifts the rest left."},
+  {"ch":9,"type":"mc","q":"To delete a character at a specific index in a StringBuilder, use this method.\na) removeCharAt\nb) deleteCharAt\nc) popCharAt\nd) eraseAt","answer":"b","explain":"sb.deleteCharAt(index) removes the character at that position. Note the spelling: deleteCharAt, not removeCharAt."},
   {"ch":9,"type":"mc","q":"The character that separates tokens in a string is known as a __________.\na) separator\nb) tokenizer\nc) delimiter\nd) terminator","answer":"c","explain":"A delimiter marks the boundary between tokens. Common delimiters: comma, space, semicolon."},
   {"ch":9,"type":"mc","q":"This String method breaks a string into tokens.\na) break\nb) tokenize\nc) getTokens\nd) split","answer":"d","explain":"str.split(delimiter) returns a String array of tokens."},
   {"ch":9,"type":"mc","q":"This method converts a string to an int and returns the int value.\na) int.ParseInt\nb) Integer.parseInt\nc) Integer.valueOf\nd) Integer.castInt","answer":"b","explain":"Integer.parseInt(\"42\") returns the int 42. Static method of the Integer wrapper class."},
@@ -182,7 +185,7 @@ QUESTIONS = [
   {"ch":10,"type":"mc","q":"In an inheritance relationship, this is the general class.\na) subclass\nb) superclass\nc) dependent class\nd) child class","answer":"b","explain":"The superclass (parent/base class) is the general class. The subclass is more specialized."},
   {"ch":10,"type":"mc","q":"In an inheritance relationship, this is the specialized class.\na) superclass\nb) supervisor class\nc) subclass\nd) parent class","answer":"c","explain":"The subclass (child/derived class) inherits from the superclass and adds its own features."},
   {"ch":10,"type":"mc","q":"This keyword indicates that a class inherits from another class.\na) derived\nb) specialized\nc) based\nd) extends","answer":"d","explain":"Syntax: public class Dog extends Animal — Dog inherits all accessible members of Animal."},
-  {"ch":10,"type":"mc","q":"A subclass does not have access to these superclass members.\na) public\nb) private\nc) protected\nd) all of these","answer":"b","explain":"Private members are strictly encapsulated — only accessible within the class they're defined in."},
+  {"ch":10,"type":"mc","q":"When accessing a superclass member from a subclass, you CANNOT access members marked as __________.\na) public\nb) private\nc) protected\nd) static","answer":"b","explain":"Private members are restricted to the class they're declared in — even subclasses can't access them directly."},
   {"ch":10,"type":"mc","q":"This keyword refers to an object's superclass.\na) super\nb) base\nc) superclass\nd) this","answer":"a","explain":"'super' is used to call the superclass constructor (super()) or access superclass methods (super.method())."},
   {"ch":10,"type":"mc","q":"In a subclass constructor, a call to the superclass constructor must __________.\na) appear as the very first statement\nb) appear as the very last statement\nc) appear between the constructor's header and opening brace\nd) not appear","answer":"a","explain":"Java requires the parent to be initialized before the child. super() must be the very first line."},
   {"ch":10,"type":"mc","q":"The following is an explicit call to the superclass's default constructor.\na) default();\nb) class();\nc) super();\nd) base();","answer":"c","explain":"super() with no arguments calls the parent's no-arg constructor."},
@@ -304,9 +307,27 @@ def write_saves(data):
         data = {"sessions": []}
     if "sessions" not in data:
         data["sessions"] = []
-    
+
     with open(SAVE_PATH, "w") as f:
         json.dump(data, f, indent=2)
+
+
+def get_weak_spots():
+    """Aggregate unique weak questions from all sessions, grouped by chapter number."""
+    data = load_saves()
+    seen = set()
+    by_chapter = {}
+    for sess in data.get("sessions", []):
+        for q in sess.get("weakQuestions", []):
+            # Deduplicate by (chapter, question text)
+            key = (q.get("ch"), q.get("q", "")[:120])
+            if key in seen:
+                continue
+            seen.add(key)
+            ch = q.get("ch")
+            if ch is not None:
+                by_chapter.setdefault(ch, []).append(q)
+    return by_chapter
 
 
 def grade_with_ollama(question: str, correct_answer: str, student_answer: str) -> dict:
@@ -416,216 +437,195 @@ HTML_PAGE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Java Study App</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;min-height:100vh;padding:1.5rem}
-.app{max-width:720px;margin:0 auto;padding-bottom:3rem}
-.screen{display:none}.screen.active{display:block}
-h1{font-size:22px;font-weight:500;margin-bottom:4px}
-h2{font-size:18px;font-weight:500;margin-bottom:1rem}
-h3{font-size:15px;font-weight:500;margin-bottom:8px;color:#333}
-.subtitle{font-size:13px;color:#999;margin-bottom:1.5rem}
-.card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
-.chip{display:inline-flex;align-items:center;padding:6px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;background:#fff;color:#333;transition:all 0.15s;user-select:none}
-.chip.selected{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem}
-button{font-family:inherit;font-size:14px;padding:8px 16px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;cursor:pointer;transition:all 0.15s}
-button:hover{background:#f5f5f5}button:active{transform:scale(0.98)}
-.btn-primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
-.btn-primary:hover{opacity:0.85;background:#1a1a1a}
-.progress-bar{height:4px;background:#e5e5e5;border-radius:2px;margin-bottom:1.5rem;overflow:hidden}
-.progress-fill{height:100%;background:#1a1a1a;border-radius:2px;transition:width 0.3s}
-.meta{font-size:12px;color:#999;margin-bottom:6px}
-.question-text{font-size:16px;line-height:1.65;color:#1a1a1a;margin-bottom:1.25rem;white-space:pre-wrap}
-.mc-option{display:block;width:100%;text-align:left;margin-bottom:8px;padding:10px 14px;font-size:14px;border:1px solid #e5e5e5;border-radius:8px;background:#fff;color:#1a1a1a;cursor:pointer;transition:all 0.15s}
-.mc-option:hover:not(:disabled){background:#f9f9f9;border-color:#ccc}
-.mc-option.correct{background:#f0fdf4;border-color:#86efac;color:#166534}
-.mc-option.wrong{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
-.mc-option.reveal{background:#f0fdf4;border-color:#86efac;color:#166534}
-.tf-row{display:flex;gap:10px;margin-bottom:1rem}
-.tf-row button{flex:1;font-size:16px;padding:12px}
-.btn-correct{background:#f0fdf4;border-color:#86efac;color:#166534}
-.btn-wrong{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
-textarea{width:100%;min-height:120px;padding:10px 12px;font-family:'Courier New',monospace;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;resize:vertical;line-height:1.5}
-textarea:focus{outline:none;border-color:#999}
-.feedback-box{padding:14px 16px;border-radius:10px;margin:14px 0;font-size:14px;line-height:1.6;border-left:4px solid}
-.feedback-success{background:#f0fdf4;border-color:#22c55e;color:#166534}
-.feedback-warning{background:#fffbeb;border-color:#eab308;color:#92400e}
-.feedback-danger{background:#fef2f2;border-color:#ef4444;color:#991b1b}
-.feedback-box strong{display:block;font-size:15px;margin-bottom:4px}
-.answer-reveal{background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:12px 14px;margin:10px 0;font-size:13px;font-family:'Courier New',monospace;line-height:1.6;white-space:pre-wrap;color:#333;max-height:200px;overflow-y:auto}
-.score-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
-.score-badge{font-size:13px;color:#666}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:1.5rem}
-.stat-card{background:#f9f9f9;border-radius:8px;padding:1rem;text-align:center}
-.stat-num{font-size:28px;font-weight:500}
-.stat-label{font-size:12px;color:#999;margin-top:2px}
-.session-card{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden}
-.session-card:hover{border-color:#93c5fd;background:#f8faff;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
-.session-card.completed{border-left:4px solid #22c55e}
-.session-card.incomplete{border-left:4px solid #f59e0b}
-.session-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
-.session-title{font-size:14px;font-weight:600;color:#1a1a1a}
-.session-badge{font-size:11px;padding:3px 8px;border-radius:99px;background:#f0f0f0;color:#666;display:inline-block}
-.session-badge.completed{background:#dcfce7;color:#166534}
-.session-badge.incomplete{background:#fef3c7;color:#92400e}
-.session-meta{font-size:12px;color:#999;display:flex;gap:12px;margin-bottom:8px}
-.session-score{font-size:20px;font-weight:700;color:#1d4ed8}
-.session-score.low{color:#dc2626}
-.session-score.medium{color:#f59e0b}
-.session-score.high{color:#16a34a}
-.session-info{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.session-stat{font-size:12px;padding:6px;background:#f9f9f9;border-radius:6px}
-.session-stat-label{color:#999;font-size:11px}
-.session-stat-value{font-weight:600;color:#333;margin-top:2px}
-.weak-areas{font-size:12px;color:#991b1b;margin-top:8px;padding-top:8px;border-top:1px solid #f0f0f0}
-.weak-areas-title{color:#991b1b;font-size:11px;font-weight:600;margin-bottom:3px}
-.timeline-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#93c5fd;margin-right:6px}
-.session-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0}
-.session-actions button{flex:1;font-size:12px;padding:6px 10px}
-.row{display:flex;gap:10px;align-items:center}.spacer{flex:1}
-.tag{font-size:11px;padding:2px 8px;border-radius:99px;background:#f0f0f0;color:#666;border:1px solid #e5e5e5;display:inline-block;margin-right:6px}
-.wrong-list{max-height:300px;overflow-y:auto}
-.wrong-item{padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#555;line-height:1.5}
-.wrong-item:last-child{border-bottom:none}
-.model-badge{display:inline-block;background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;font-size:12px;padding:3px 10px;border-radius:99px;margin-bottom:1rem}
-.spinner{display:inline-block;width:14px;height:14px;border:2px solid #ccc;border-top-color:#1a1a1a;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#1a1a1a;color:#fff;padding:8px 16px;border-radius:99px;font-size:13px;transition:transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
-.toast.show{transform:translateX(-50%) translateY(0)}
-
-/* ── Mode selector cards on home ── */
-.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}
-.mode-card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:1.25rem;cursor:pointer;transition:all 0.15s;text-align:center}
-.mode-card:hover{border-color:#93c5fd;background:#f8faff}
-.mode-card.full-width{grid-column:1/-1}
-.mode-icon{font-size:28px;margin-bottom:8px}
-.mode-title{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:4px}
-.mode-desc{font-size:12px;color:#999;line-height:1.4}
-
-/* ── Study material styles ── */
-.study-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.5rem}
-.study-nav button.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
-.study-section{margin-bottom:2rem}
-.study-topic{background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:14px 16px;margin-bottom:10px}
-.study-topic summary{font-size:14px;font-weight:500;cursor:pointer;color:#1a1a1a;padding:2px 0}
-.study-topic summary:hover{color:#1d4ed8}
-.study-topic .study-content{margin-top:10px;font-size:13px;line-height:1.7;color:#444}
-.study-topic .study-content p{margin-bottom:8px}
-.study-topic .study-content code{background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:12px}
-.study-topic .study-content pre{background:#f9f9f9;border:1px solid #e5e5e5;border-radius:6px;padding:10px 12px;font-size:12px;overflow-x:auto;margin:8px 0;line-height:1.5}
-.study-key{display:inline-block;background:#eff6ff;color:#1d4ed8;font-size:11px;padding:2px 8px;border-radius:4px;margin-right:4px;margin-bottom:4px}
-
-/* ── Unit picker ── */
-.unit-card{background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:1rem 1.25rem;margin-bottom:10px;cursor:pointer;transition:all 0.15s;display:flex;justify-content:space-between;align-items:center}
-.unit-card:hover{border-color:#93c5fd;background:#f8faff}
-.unit-card .unit-info .unit-title{font-size:15px;font-weight:500}
-.unit-card .unit-info .unit-count{font-size:12px;color:#999;margin-top:2px}
-.unit-card .unit-arrow{color:#ccc;font-size:18px}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 /* ── CSS variables — light / dark ── */
-:root{--bg:#f5f5f3;--surface:#fff;--border:#e5e5e5;--text:#1a1a1a;--muted:#999;--primary:#1a1a1a;--primary-fg:#fff}
-[data-dark]{--bg:#0f0f0f;--surface:#1c1c1e;--border:#2c2c2e;--text:#efefef;--muted:#b5b5b5;--primary:#e8e8e8;--primary-fg:#1a1a1a}
-body{background:var(--bg)!important;color:var(--text)!important}
-.card,.unit-card,.mode-card,.session-card,.study-topic,.answer-reveal{background:var(--surface)!important;border-color:var(--border)!important}
-.chip{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
-.mc-option{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
-textarea{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
-button:not(.btn-primary):not(.mc-option.correct):not(.mc-option.wrong):not(.mc-option.reveal):not(.btn-correct):not(.btn-wrong):not(.modal-x):not(.dark-toggle){background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
-.btn-primary{background:var(--primary)!important;color:var(--primary-fg)!important;border-color:var(--primary)!important}
-.subtitle,.meta,.session-stat-label,.unit-count{color:var(--muted)!important}
-.session-stat,.stat-card{background:var(--bg)!important}
-h1,h2,h3{color:var(--text)!important}
-.session-title{color:var(--text)!important}
-.progress-bar{background:var(--border)!important}
-.progress-fill{background:var(--text)!important}
-[data-dark] .session-meta,
-[data-dark] .score-badge,
-[data-dark] .session-stat-value,
-[data-dark] .wrong-item,
-[data-dark] .study-topic .study-content,
-[data-dark] .mode-desc,
-[data-dark] .unit-card .unit-info .unit-count,
-[data-dark] .answer-reveal{color:var(--text)!important}
-[data-dark] .tag,
-[data-dark] .session-badge,
-[data-dark] .study-key{color:var(--text)!important}
-[data-dark] .study-topic .study-content code,
-[data-dark] .answer-reveal,
-[data-dark] .study-topic .study-content pre{background:var(--bg)!important;border-color:var(--border)!important;color:var(--text)!important}
-[data-dark] .app,
-[data-dark] .app *{color:var(--text)!important}
-[data-dark] .btn-primary,
-[data-dark] .btn-primary *,
-[data-dark] .btn-correct,
-[data-dark] .btn-correct *,
-[data-dark] .btn-wrong,
-[data-dark] .btn-wrong *,
-[data-dark] .mc-option.correct,
-[data-dark] .mc-option.wrong,
-[data-dark] .mc-option.reveal,
-[data-dark] .toast,
-[data-dark] .toast *,
-[data-dark] .feedback-success,
-[data-dark] .feedback-warning,
-[data-dark] .feedback-danger,
-[data-dark] .session-score.low,
-[data-dark] .session-score.medium,
-[data-dark] .session-score.high,
-[data-dark] .conn-dot,
-[data-dark] .dark-toggle,
-[data-dark] .dark-toggle *{color:inherit!important}
-[data-dark] .btn-primary{background:var(--primary)!important;color:var(--primary-fg)!important;border-color:var(--primary)!important}
-[data-dark] .btn-correct{background:#14532d!important;border-color:#14532d!important;color:#dcfce7!important}
-[data-dark] .btn-wrong{background:#7f1d1d!important;border-color:#7f1d1d!important;color:#fee2e2!important}
-[data-dark] .mc-option.correct{background:#14532d!important;border-color:#166534!important;color:#dcfce7!important}
-[data-dark] .mc-option.wrong{background:#7f1d1d!important;border-color:#991b1b!important;color:#fee2e2!important}
-[data-dark] .mc-option.reveal{background:#14532d!important;border-color:#166534!important;color:#dcfce7!important}
-[data-dark] .feedback-success{background:#052e16!important;border-color:#22c55e!important;color:#bbf7d0!important}
-[data-dark] .feedback-warning{background:#422006!important;border-color:#f59e0b!important;color:#fde68a!important}
-[data-dark] .feedback-danger{background:#450a0a!important;border-color:#ef4444!important;color:#fecaca!important}
-[data-dark] .session-score.low{color:#fca5a5!important}
-[data-dark] .session-score.medium{color:#fbbf24!important}
-[data-dark] .session-score.high{color:#4ade80!important}
-[data-dark] .conn-dot.ok{background:#22c55e!important}
-[data-dark] .conn-dot.err{background:#ef4444!important}
-[data-dark] .conn-dot.wait{background:#f59e0b!important}
-[data-dark] .dark-toggle{color:var(--text)!important}
-[data-dark] .timeline-dot{background:#60a5fa!important}
-[data-dark] [style*="color:#999"],
-[data-dark] [style*="color: #999"],
-[data-dark] [style*="color:#666"],
-[data-dark] [style*="color: #666"],
-[data-dark] [style*="color:#555"],
-[data-dark] [style*="color: #555"],
-[data-dark] [style*="color:#444"],
-[data-dark] [style*="color: #444"],
-[data-dark] [style*="color:#333"],
-[data-dark] [style*="color: #333"],
-[data-dark] [style*="color:#ddd"],
-[data-dark] [style*="color: #ddd"]{color:var(--text)!important}
+:root {
+  --bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --border: #E8E8E8;
+  --text: #1A1A1A;
+  --muted: #9A9A9A;
+  --accent: #4A90D9;
+  --accent-hover: #3478BE;
+  --accent-light: #EBF3FB;
+  --shadow: 0 1px 3px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.04);
+}
+[data-dark] {
+  --bg: #111111;
+  --surface: #1C1C1E;
+  --border: #2C2C2E;
+  --text: #EFEFEF;
+  --muted: #888888;
+  --accent: #5B9FE4;
+  --accent-hover: #4A90D9;
+  --accent-light: #1A2E42;
+}
 
-/* ── Dark mode toggle (fixed corner button) ── */
-.dark-toggle{position:fixed;top:14px;right:14px;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;box-shadow:0 2px 10px rgba(0,0,0,.08);transition:transform .2s,box-shadow .2s;padding:0}
-.dark-toggle:hover{transform:scale(1.1);box-shadow:0 4px 16px rgba(0,0,0,.12)}
+/* ── Base ── */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:1.5rem;font-size:15px;line-height:1.6}
+.app{max-width:680px;margin:0 auto;padding-bottom:4rem}
+.screen{display:none}.screen.active{display:block}
+
+/* ── Typography ── */
+h1{font-size:22px;font-weight:600;margin-bottom:4px;color:var(--text)}
+h2{font-size:18px;font-weight:600;margin-bottom:1rem;color:var(--text)}
+h3{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.subtitle{font-size:13px;color:var(--muted);margin-bottom:1.5rem}
+.meta{font-size:12px;color:var(--muted);margin-bottom:6px}
+
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:12px;box-shadow:var(--shadow)}
+
+/* ── Chips ── */
+.chip{display:inline-flex;align-items:center;padding:6px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;background:var(--surface);color:var(--text);transition:all 0.15s;user-select:none}
+.chip.selected{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem}
+
+/* ── Buttons ── */
+button{font-family:inherit;font-size:14px;padding:8px 18px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;transition:all 0.15s}
+button:hover{background:var(--bg);border-color:#C8C8C8}
+button:active{transform:scale(0.98)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+
+/* ── Progress bar ── */
+.progress-bar{height:3px;background:var(--border);border-radius:2px;margin-bottom:1.5rem;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s}
+
+/* ── Question ── */
+.question-text{font-size:16px;line-height:1.7;color:var(--text);margin-bottom:1.25rem;white-space:pre-wrap}
+.score-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.score-badge{font-size:13px;color:var(--muted)}
+
+/* ── MC options ── */
+.mc-option{display:block;width:100%;text-align:left;margin-bottom:8px;padding:10px 16px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;transition:all 0.15s}
+.mc-option:hover:not(:disabled){background:var(--accent-light);border-color:var(--accent)}
+.mc-option.correct{background:#F0FDF4;border-color:#86EFAC;color:#166534}
+.mc-option.wrong{background:#FEF2F2;border-color:#FCA5A5;color:#991B1B}
+.mc-option.reveal{background:#F0FDF4;border-color:#86EFAC;color:#166534}
+
+/* ── True / False ── */
+.tf-row{display:flex;gap:10px;margin-bottom:1rem}
+.tf-row button{flex:1;font-size:16px;padding:12px}
+.btn-correct{background:#F0FDF4;border-color:#86EFAC;color:#166534}
+.btn-wrong{background:#FEF2F2;border-color:#FCA5A5;color:#991B1B}
+
+/* ── Textarea ── */
+textarea{width:100%;min-height:120px;padding:10px 12px;font-family:'Courier New',monospace;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);resize:vertical;line-height:1.5}
+textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(74,144,217,.12)}
+
+/* ── Feedback boxes ── */
+.feedback-box{padding:14px 16px;border-radius:10px;margin:14px 0;font-size:14px;line-height:1.6;border-left:3px solid}
+.feedback-success{background:#F0FDF4;border-color:#22C55E;color:#166534}
+.feedback-warning{background:#FFFBEB;border-color:#EAB308;color:#92400E}
+.feedback-danger{background:#FEF2F2;border-color:#EF4444;color:#991B1B}
+.feedback-box strong{display:block;font-size:15px;margin-bottom:4px}
+
+/* ── Answer reveal ── */
+.answer-reveal{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin:10px 0;font-size:13px;font-family:'Courier New',monospace;line-height:1.6;white-space:pre-wrap;color:var(--text);max-height:200px;overflow-y:auto}
+
+/* ── Stats ── */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:1.5rem}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;text-align:center;box-shadow:var(--shadow)}
+.stat-num{font-size:28px;font-weight:600;color:var(--accent)}
+.stat-label{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ── Session cards ── */
+.session-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.session-card:hover{border-color:var(--accent);box-shadow:0 2px 12px rgba(74,144,217,.1)}
+.session-card.completed{border-left:3px solid #22C55E}
+.session-card.incomplete{border-left:3px solid #F59E0B}
+.session-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.session-title{font-size:14px;font-weight:600;color:var(--text)}
+.session-badge{font-size:11px;padding:3px 8px;border-radius:99px;background:var(--bg);color:var(--muted);display:inline-block}
+.session-badge.completed{background:#DCFCE7;color:#166534}
+.session-badge.incomplete{background:#FEF3C7;color:#92400E}
+.session-meta{font-size:12px;color:var(--muted);display:flex;gap:12px;margin-bottom:8px}
+.session-score{font-size:20px;font-weight:700;color:var(--accent)}
+.session-score.low{color:#DC2626}
+.session-score.medium{color:#F59E0B}
+.session-score.high{color:#16A34A}
+.session-info{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.session-stat{font-size:12px;padding:6px;background:var(--bg);border-radius:6px}
+.session-stat-label{color:var(--muted);font-size:11px}
+.session-stat-value{font-weight:600;color:var(--text);margin-top:2px}
+.weak-areas{font-size:12px;color:#991B1B;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.weak-areas-title{color:#991B1B;font-size:11px;font-weight:600;margin-bottom:3px}
+.timeline-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);opacity:.55;margin-right:6px}
+.session-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.session-actions button{flex:1;font-size:12px;padding:6px 10px}
+
+/* ── Layout helpers ── */
+.row{display:flex;gap:10px;align-items:center}.spacer{flex:1}
+.tag{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--bg);color:var(--muted);border:1px solid var(--border);display:inline-block;margin-right:6px}
+.wrong-list{max-height:300px;overflow-y:auto}
+.wrong-item{padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);line-height:1.5}
+.wrong-item:last-child{border-bottom:none}
+
+/* ── Model badge ── */
+.model-badge{display:inline-block;background:var(--accent-light);border:1px solid var(--accent);color:var(--accent);font-size:12px;padding:3px 10px;border-radius:99px;margin-bottom:1rem}
+
+/* ── Spinner ── */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:var(--surface);padding:8px 18px;border-radius:99px;font-size:13px;transition:transform 0.3s cubic-bezier(0.18,0.89,0.32,1.28);z-index:1000;box-shadow:0 4px 16px rgba(0,0,0,.15)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── Mode selector grid ── */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}
+.mode-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem;cursor:pointer;transition:all 0.15s;text-align:center;box-shadow:var(--shadow)}
+.mode-card:hover{border-color:var(--accent);box-shadow:0 2px 12px rgba(74,144,217,.1)}
+.mode-card.full-width{grid-column:1/-1}
+.mode-icon{font-size:26px;margin-bottom:8px}
+.mode-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.mode-desc{font-size:12px;color:var(--muted);line-height:1.4}
+
+/* ── Study material ── */
+.study-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.5rem}
+.study-nav button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.study-section{margin-bottom:2rem}
+.study-topic{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow)}
+.study-topic summary{font-size:14px;font-weight:500;cursor:pointer;color:var(--text);padding:2px 0}
+.study-topic summary:hover{color:var(--accent)}
+.study-topic .study-content{margin-top:10px;font-size:13px;line-height:1.7;color:var(--muted)}
+.study-topic .study-content p{margin-bottom:8px}
+.study-topic .study-content code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:12px;color:var(--text)}
+.study-topic .study-content pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;overflow-x:auto;margin:8px 0;line-height:1.5}
+.study-key{display:inline-block;background:var(--accent-light);color:var(--accent);font-size:11px;padding:2px 8px;border-radius:4px;margin-right:4px;margin-bottom:4px}
+
+/* ── Unit picker ── */
+.unit-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;margin-bottom:10px;cursor:pointer;transition:all 0.15s;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow)}
+.unit-card:hover{border-color:var(--accent);box-shadow:0 2px 12px rgba(74,144,217,.1)}
+.unit-card .unit-info .unit-title{font-size:15px;font-weight:500;color:var(--text)}
+.unit-card .unit-info .unit-count{font-size:12px;color:var(--muted);margin-top:2px}
+.unit-card .unit-arrow{color:var(--border);font-size:18px}
+
+/* ── Dark mode toggle ── */
+.dark-toggle{position:fixed;top:14px;right:14px;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;padding:0}
+.dark-toggle:hover{transform:scale(1.08);box-shadow:0 4px 16px rgba(0,0,0,.12)}
 
 /* ── Ollama connection badge ── */
 .conn-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--border);margin-left:8px;cursor:pointer;vertical-align:middle;transition:border-color .2s}
-.conn-badge:hover{border-color:#93c5fd}
+.conn-badge:hover{border-color:var(--accent)}
 .conn-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s}
-.conn-dot.ok{background:#22c55e;box-shadow:0 0 6px #22c55e80}
-.conn-dot.err{background:#ef4444;box-shadow:0 0 6px #ef444480}
-.conn-dot.wait{background:#f59e0b;animation:cblink 1s infinite}
+.conn-dot.ok{background:#22C55E;box-shadow:0 0 6px rgba(34,197,94,.4)}
+.conn-dot.err{background:#EF4444;box-shadow:0 0 6px rgba(239,68,68,.4)}
+.conn-dot.wait{background:#F59E0B;animation:cblink 1s infinite}
 @keyframes cblink{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* ── Modal system ── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .18s}
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .18s}
 .modal-overlay.open{opacity:1;pointer-events:auto}
-.modal{background:var(--surface);border-radius:16px;padding:1.5rem;max-width:520px;width:100%;max-height:84vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.22);transform:scale(.93);transition:transform .2s cubic-bezier(.18,.89,.32,1.28)}
+.modal{background:var(--surface);border-radius:14px;padding:1.5rem;max-width:520px;width:100%;max-height:84vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.18);transform:scale(.94);transition:transform .2s cubic-bezier(.18,.89,.32,1.28)}
 .modal-overlay.open .modal{transform:scale(1)}
 .modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem}
 .modal-hdr h3{margin:0;font-size:16px;font-weight:600;color:var(--text)}
 .modal-x{background:none!important;border:none!important;font-size:20px;color:var(--muted)!important;cursor:pointer;padding:0;line-height:1;width:30px;height:30px;border-radius:50%!important;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.modal-x:hover{background:var(--border)!important}
+.modal-x:hover{background:var(--bg)!important}
 .modal-body{font-size:14px;line-height:1.75;color:var(--text)}
 .modal-foot{margin-top:1.25rem;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .modal-foot button{min-width:90px}
@@ -643,12 +643,34 @@ h1,h2,h3{color:var(--text)!important}
 /* ── Export button ── */
 .btn-export{background:var(--surface)!important;border:1px solid var(--border)!important;color:var(--text)!important;font-size:12px!important;padding:5px 12px!important}
 
-/* ── Toast improvements ── */
-.toast{background:var(--primary);color:var(--primary-fg)}
-
 /* ── Announce bar (Ollama offline) ── */
-.announce{background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 14px;font-size:13px;color:#92400e;margin-bottom:1rem;display:none;align-items:center;gap:8px}
+.announce{background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;padding:10px 14px;font-size:13px;color:#92400E;margin-bottom:1rem;display:none;align-items:center;gap:8px}
 .announce.show{display:flex}
+
+/* ── Dark mode: color-coded overrides ── */
+[data-dark] .mc-option.correct{background:#14532D!important;border-color:#166534!important;color:#DCFCE7!important}
+[data-dark] .mc-option.wrong{background:#7F1D1D!important;border-color:#991B1B!important;color:#FEE2E2!important}
+[data-dark] .mc-option.reveal{background:#14532D!important;border-color:#166534!important;color:#DCFCE7!important}
+[data-dark] .btn-correct{background:#14532D!important;border-color:#14532D!important;color:#DCFCE7!important}
+[data-dark] .btn-wrong{background:#7F1D1D!important;border-color:#7F1D1D!important;color:#FEE2E2!important}
+[data-dark] .feedback-success{background:#052E16!important;border-color:#22C55E!important;color:#BBF7D0!important}
+[data-dark] .feedback-warning{background:#422006!important;border-color:#F59E0B!important;color:#FDE68A!important}
+[data-dark] .feedback-danger{background:#450A0A!important;border-color:#EF4444!important;color:#FECACA!important}
+[data-dark] .session-score.low{color:#FCA5A5!important}
+[data-dark] .session-score.medium{color:#FBBF24!important}
+[data-dark] .session-score.high{color:#4ADE80!important}
+[data-dark] .conn-dot.ok{background:#22C55E!important}
+[data-dark] .conn-dot.err{background:#EF4444!important}
+[data-dark] .conn-dot.wait{background:#F59E0B!important}
+[data-dark] .announce{background:#422006!important;border-color:#F59E0B!important;color:#FDE68A!important}
+[data-dark] .session-badge.completed{background:#14532D!important;color:#DCFCE7!important}
+[data-dark] .session-badge.incomplete{background:#422006!important;color:#FDE68A!important}
+[data-dark] [style*="color:#999"],[data-dark] [style*="color: #999"],
+[data-dark] [style*="color:#666"],[data-dark] [style*="color: #666"],
+[data-dark] [style*="color:#555"],[data-dark] [style*="color: #555"],
+[data-dark] [style*="color:#444"],[data-dark] [style*="color: #444"],
+[data-dark] [style*="color:#333"],[data-dark] [style*="color: #333"],
+[data-dark] [style*="color:#ddd"],[data-dark] [style*="color: #ddd"]{color:var(--text)!important}
 </style>
 </head>
 <body>
@@ -709,6 +731,11 @@ h1,h2,h3{color:var(--text)!important}
         <div class="mode-title">All Units Combined</div>
         <div class="mode-desc">Test yourself on every chapter at once</div>
       </div>
+      <div class="mode-card" onclick="showScreen('screen-weak-spots')">
+        <div class="mode-icon">&#9888;&#65039;</div>
+        <div class="mode-title">Weak Spots</div>
+        <div class="mode-desc">Drill questions you got wrong in past sessions</div>
+      </div>
     </div>
 
     <div class="card">
@@ -755,6 +782,16 @@ h1,h2,h3{color:var(--text)!important}
     <h2>Unit Quiz</h2>
     <p class="subtitle">Pick a chapter to quiz — all question types included</p>
     <div id="unit-list"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SCREEN: WEAK SPOTS — Drill questions missed in past sessions
+       ════════════════════════════════════════════════════════════════════ -->
+  <div id="screen-weak-spots" class="screen">
+    <button onclick="showScreen('screen-home')" style="font-size:13px;color:#999;border:none;background:none;padding:0;margin-bottom:1rem;cursor:pointer">&larr; Back to home</button>
+    <h2>Weak Spots</h2>
+    <p class="subtitle">Questions you got wrong in past sessions, grouped by chapter</p>
+    <div id="weak-spots-list"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════════
@@ -848,6 +885,8 @@ h1,h2,h3{color:var(--text)!important}
 </div>
 <script>
 const QUESTIONS = __QUESTIONS__;
+// Weak spots: {chapterNumber: [questionObjects]} aggregated from completed sessions
+const WEAK_SPOTS = __WEAK_SPOTS__;
 
 /* ════════════════════════════════════════════════════════════════════════
    DARK MODE
@@ -1129,7 +1168,7 @@ async function loadConfig() {
 function renderSessionTimeline() {
   const container = document.getElementById('session-timeline');
   const emptyState = document.getElementById('empty-state');
-  
+
   const exportBtn = document.getElementById('btn-export-all');
   if (!saves.sessions || saves.sessions.length === 0) {
     container.innerHTML = '';
@@ -1140,10 +1179,10 @@ function renderSessionTimeline() {
 
   emptyState.style.display = 'none';
   if (exportBtn) exportBtn.style.display = 'inline-flex';
-  
+
   // Sort by newest first
   const sorted = [...saves.sessions].sort((a, b) => b.createdAt - a.createdAt);
-  
+
   let html = '';
   for (const sess of sorted.slice(0, 10)) {  // Show 10 most recent
     const date = new Date(sess.createdAt);
@@ -1153,12 +1192,12 @@ function renderSessionTimeline() {
     const scoreClass = pct >= 80 ? 'high' : pct >= 60 ? 'medium' : 'low';
     const statusClass = sess.status === 'completed' ? 'completed' : 'incomplete';
     const statusText = sess.status === 'completed' ? '✓ Completed' : '⏳ In Progress';
-    
+
     // Mode label
-    const modeLabel = sess.mode === 'unit' ? `Ch ${sess.chapters[0]}` : 
-                      sess.mode === 'custom' ? `Custom (${sess.chapters.length} ch)` : 
+    const modeLabel = sess.mode === 'unit' ? `Ch ${sess.chapters[0]}` :
+                      sess.mode === 'custom' ? `Custom (${sess.chapters.length} ch)` :
                       'All Chapters';
-    
+
     // Weak areas
     let weakHtml = '';
     if (sess.weakQuestions && sess.weakQuestions.length > 0) {
@@ -1168,7 +1207,7 @@ function renderSessionTimeline() {
         ${weakTopics.map(t => `<span class="tag" style="font-size:11px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">${{mc:'MC',tf:'T/F',fte:'FTE',aw:'Algorithm',sa:'Short Ans'}[t] || t}</span>`).join('')}
       </div>`;
     }
-    
+
     html += `<div class="session-card ${statusClass}">
       <div class="session-header">
         <div>
@@ -1201,7 +1240,7 @@ function renderSessionTimeline() {
       </div>
     </div>`;
   }
-  
+
   container.innerHTML = html;
 }
 
@@ -1217,7 +1256,7 @@ async function deleteSession(sessionId) {
 function resumeSession(sessionId) {
   const sess = saves.sessions.find(s => s.id === sessionId);
   if (!sess) return;
-  
+
   // Reconstruct session
   session = {
     id: sess.id,
@@ -1357,17 +1396,94 @@ function renderUnitList() {
   el.innerHTML = html;
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   WEAK SPOTS — cross-session drill mode
+   ════════════════════════════════════════════════════════════════════════ */
+function renderWeakSpotsList() {
+  const el = document.getElementById('weak-spots-list');
+  if (!el) return;
+  const chapters = Object.keys(WEAK_SPOTS).map(Number).sort((a, b) => a - b);
+  if (chapters.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:2rem;color:#999;font-size:14px">' +
+      '<div style="font-size:2rem;margin-bottom:8px">📋</div>' +
+      'Complete some quizzes first to build your weak spots list.</div>';
+    return;
+  }
+  const total = chapters.reduce((n, ch) => n + WEAK_SPOTS[ch].length, 0);
+  let html = '';
+  // "Drill all" button when there are questions from multiple chapters
+  if (total > 0) {
+    html += `<div class="unit-card" onclick="startWeakSpotsAll()" style="background:var(--accent,#2563eb);color:#fff;border-color:transparent">
+      <div class="unit-info">
+        <div class="unit-title" style="color:#fff">All Weak Spots</div>
+        <div class="unit-count" style="color:rgba(255,255,255,0.8)">${total} question${total !== 1 ? 's' : ''} across ${chapters.length} chapter${chapters.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="unit-arrow" style="color:#fff">&rarr;</div>
+    </div>`;
+  }
+  for (const ch of chapters) {
+    const qs = WEAK_SPOTS[ch];
+    const info = CHAPTER_INFO[ch] || {title: 'Chapter ' + ch};
+    html += `<div class="unit-card" onclick="startWeakSpots(${ch})">
+      <div class="unit-info">
+        <div class="unit-title">${info.title}</div>
+        <div class="unit-count">${qs.length} weak question${qs.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="unit-arrow">&rarr;</div>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function startWeakSpots(ch) {
+  const qs = (WEAK_SPOTS[ch] || []).slice().sort(() => Math.random() - 0.5);
+  if (!qs.length) { openModal('No Data', '<p>No weak questions found for this chapter.</p>'); return; }
+  session = {
+    id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
+    questions: qs,
+    idx: 0,
+    correct: 0,
+    wrongIds: [],
+    total: qs.length,
+    qIds: qs.map(q => QUESTIONS.findIndex(wq => wq.ch === q.ch && wq.q === q.q)),
+    mode: 'weak',
+    modeKey: 'weak_ch' + ch,
+    weakQuestions: [],
+    createdAt: Date.now()
+  };
+  showQuiz();
+}
+
+function startWeakSpotsAll() {
+  const allQs = Object.values(WEAK_SPOTS).flat().slice().sort(() => Math.random() - 0.5);
+  if (!allQs.length) { openModal('No Data', '<p>No weak questions found yet.</p>'); return; }
+  session = {
+    id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
+    questions: allQs,
+    idx: 0,
+    correct: 0,
+    wrongIds: [],
+    total: allQs.length,
+    qIds: allQs.map(q => QUESTIONS.findIndex(wq => wq.ch === q.ch && wq.q === q.q)),
+    mode: 'weak',
+    modeKey: 'weak_all',
+    weakQuestions: [],
+    createdAt: Date.now()
+  };
+  showQuiz();
+}
+
 function startUnit(ch) {
   let qs = QUESTIONS.filter(q => q.ch === ch).sort(() => Math.random() - 0.5);
-  session = { 
+  session = {
     id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
-    questions: qs, 
-    idx: 0, 
-    correct: 0, 
-    wrongIds: [], 
-    total: qs.length, 
-    qIds: qs.map(q => QUESTIONS.indexOf(q)), 
-    mode: 'unit', 
+    questions: qs,
+    idx: 0,
+    correct: 0,
+    wrongIds: [],
+    total: qs.length,
+    qIds: qs.map(q => QUESTIONS.indexOf(q)),
+    mode: 'unit',
     modeKey: 'unit_' + ch,
     weakQuestions: [],
     createdAt: Date.now()
@@ -1380,15 +1496,15 @@ function startUnit(ch) {
    ════════════════════════════════════════════════════════════════════════ */
 function startAllUnits() {
   let qs = [...QUESTIONS].sort(() => Math.random() - 0.5);
-  session = { 
+  session = {
     id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
-    questions: qs, 
-    idx: 0, 
-    correct: 0, 
-    wrongIds: [], 
-    total: qs.length, 
-    qIds: qs.map(q => QUESTIONS.indexOf(q)), 
-    mode: 'all', 
+    questions: qs,
+    idx: 0,
+    correct: 0,
+    wrongIds: [],
+    total: qs.length,
+    qIds: qs.map(q => QUESTIONS.indexOf(q)),
+    mode: 'all',
     modeKey: 'all_combined',
     weakQuestions: [],
     createdAt: Date.now()
@@ -1407,15 +1523,15 @@ function startSession() {
   let qs = QUESTIONS.filter(q => chs.includes(q.ch) && types.includes(q.type));
   if (shuffle) qs = qs.sort(() => Math.random() - 0.5);
   const customKey = 'custom_' + chs.sort().join('-') + '_' + types.sort().join('-');
-  session = { 
+  session = {
     id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
-    questions: qs, 
-    idx: 0, 
-    correct: 0, 
-    wrongIds: [], 
-    total: qs.length, 
-    qIds: qs.map(q => QUESTIONS.indexOf(q)), 
-    mode: 'custom', 
+    questions: qs,
+    idx: 0,
+    correct: 0,
+    wrongIds: [],
+    total: qs.length,
+    qIds: qs.map(q => QUESTIONS.indexOf(q)),
+    mode: 'custom',
     modeKey: customKey,
     weakQuestions: [],
     createdAt: Date.now()
@@ -1447,14 +1563,14 @@ function goHome() { saveCurrent(); showScreen('screen-home'); renderSaveSlots();
 
 async function saveCurrent() {
   if (!session.questions.length) return;
-  
+
   // Update indicator
   const ind = document.getElementById('auto-save-indicator');
   if (ind) ind.textContent = 'Saving...';
-  
+
   // Create or update session record
   let sessionRecord = saves.sessions.find(s => s.id === session.id);
-  
+
   if (!sessionRecord) {
     // New session
     sessionRecord = {
@@ -1481,12 +1597,12 @@ async function saveCurrent() {
     sessionRecord.wrongIds = session.wrongIds || [];
     sessionRecord.status = session.idx >= session.total ? 'completed' : 'in_progress';
   }
-  
+
   // Track weak questions
   sessionRecord.weakQuestions = session.wrongIds.map((idx, i) => session.questions[idx]).filter(q => q);
-  
+
   await persistSaves();
-  
+
   // Update indicator
   if (ind) {
     ind.textContent = 'Saved';
@@ -1561,7 +1677,7 @@ function checkMC(btn, chosen, correct) {
   else {
     btn.classList.add('wrong');
     document.querySelectorAll('.mc-option').forEach(o => { if (o.textContent.trim().startsWith(correct)) o.classList.add('reveal'); });
-    session.wrongIds.push(session.idx);
+    if (!session.wrongIds.includes(session.idx)) session.wrongIds.push(session.idx);
   }
   const q = session.questions[session.idx];
   showFeedback(isCorrect ? 'success' : 'danger', isCorrect ? 'Correct!' : 'Incorrect.', q.explain);
@@ -1577,7 +1693,7 @@ function checkTF(btn, chosen, correct) {
   const btns = btn.parentElement.querySelectorAll('button');
   btns.forEach(b => b.disabled = true);
   if (isCorrect) { btn.classList.add('btn-correct'); session.correct++; }
-  else { btn.classList.add('btn-wrong'); btns.forEach(b => { if (b.textContent === correct) b.classList.add('btn-correct'); }); session.wrongIds.push(session.idx); }
+  else { btn.classList.add('btn-wrong'); btns.forEach(b => { if (b.textContent === correct) b.classList.add('btn-correct'); }); if (!session.wrongIds.includes(session.idx)) session.wrongIds.push(session.idx); }
   showFeedback(isCorrect ? 'success' : 'danger', isCorrect ? 'Correct!' : 'Incorrect.', session.questions[session.idx].explain);
   document.getElementById('btn-next').style.display = 'inline-block';
   document.getElementById('key-hint').style.display = 'inline';
@@ -1601,7 +1717,7 @@ async function submitAnswer() {
     const result = await resp.json();
     answered = true;
     if (result.verdict === 'CORRECT') session.correct++;
-    else if (result.verdict !== 'PARTIAL') session.wrongIds.push(session.idx);
+    else if (result.verdict !== 'PARTIAL') { if (!session.wrongIds.includes(session.idx)) session.wrongIds.push(session.idx); }
     const type = result.verdict === 'CORRECT' ? 'success' : result.verdict === 'PARTIAL' ? 'warning' : 'danger';
     const label = result.verdict === 'CORRECT' ? 'Correct!' : result.verdict === 'PARTIAL' ? 'Partially correct' : 'Incorrect';
     showFeedback(type, label, result.feedback, q.answer);
@@ -1620,7 +1736,7 @@ async function submitAnswer() {
 function showFeedback(type, label, msg, correctAnswer) {
   const el = document.getElementById('q-feedback');
   let html = '';
-  
+
   // Create structured feedback box
   if (type === 'success') {
     html = `<div class="feedback-box feedback-${type}">
@@ -1638,7 +1754,7 @@ function showFeedback(type, label, msg, correctAnswer) {
       <div style="margin-top: 6px; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(msg)}</div>
     </div>`;
   }
-  
+
   // Show model answer for all types
   if (correctAnswer) {
     html += `<div style="margin-top: 12px;">
@@ -1646,7 +1762,7 @@ function showFeedback(type, label, msg, correctAnswer) {
       <div class="answer-reveal">${escapeHtml(correctAnswer)}</div>
     </div>`;
   }
-  
+
   el.innerHTML = html;
   el.style.display = 'block';
 }
@@ -1683,7 +1799,7 @@ function showEnd() {
   } else {
     document.getElementById('wrong-section').style.display = 'none';
   }
-  
+
   // Auto-save session as completed
   (async () => {
     const sess = saves.sessions.find(s => s.id === session.id);
@@ -1700,13 +1816,13 @@ function showEnd() {
 
 function retryWrong() {
   const wrongQs = session.wrongIds.map(id => session.questions[id]);
-  session = { 
+  session = {
     id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2,9),
-    questions: wrongQs, 
-    idx: 0, 
-    correct: 0, 
-    wrongIds: [], 
-    total: wrongQs.length, 
+    questions: wrongQs,
+    idx: 0,
+    correct: 0,
+    wrongIds: [],
+    total: wrongQs.length,
     qIds: wrongQs.map(q => QUESTIONS.indexOf(q)),
     mode: 'review',
     modeKey: 'retry_wrong',
@@ -1724,6 +1840,7 @@ document.querySelectorAll('#type-chips .chip').forEach(c => c.addEventListener('
 
 renderStudyUnitList();
 renderUnitList();
+renderWeakSpotsList();
 loadConfig();
 loadSaves();
 checkHealth();
@@ -1770,6 +1887,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/" or path == "/index.html":
             page = HTML_PAGE.replace(
                 "__QUESTIONS__", json.dumps(QUESTIONS, ensure_ascii=False)
+            ).replace(
+                "__WEAK_SPOTS__", json.dumps(get_weak_spots(), ensure_ascii=False)
             )
             self.send_html(page)
         elif path == "/api/saves":
@@ -1834,21 +1953,17 @@ def main():
             url = f"http://localhost:{SERVER_PORT}"
         else:
             url = f"http://{SERVER_HOST}:{SERVER_PORT}"
-        
-        if AUTO_OPEN_BROWSER:
-            webbrowser.open(url)
-        else:
-            print(f"\n  Open your browser to: {url}")
+        webbrowser.open(url)
 
-    threading.Thread(target=open_browser, daemon=True).start()
+    if AUTO_OPEN_BROWSER:
+        threading.Thread(target=open_browser, daemon=True).start()
 
-    print(f"\n  Press Ctrl+C to stop.\n")
+    print(f"\n  Opening browser... Press Ctrl+C to stop.\n")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n  Server stopped. Your checkpoints are saved.")
         server.server_close()
-
 
 
 if __name__ == "__main__":

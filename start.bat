@@ -24,17 +24,17 @@ if %errorlevel% neq 0 (
     echo.
 ) else (
     echo Checking if Ollama model is available...
-    ollama list 2>nul | findstr /i "llama3:latest" >nul 2>&1
+    ollama list 2>nul | findstr /i "qwen2.5:14b" >nul 2>&1
     if %errorlevel% neq 0 (
-        echo Pulling model llama3:latest -- this may take a minute on first run...
-        ollama pull llama3:latest
+        echo Pulling model qwen2.5:14b -- this may take a minute on first run...
+        ollama pull qwen2.5:14b
         if %errorlevel% neq 0 (
             echo [WARNING] Failed to pull model. Make sure Ollama is running: ollama serve
         ) else (
             echo Model ready!
         )
     ) else (
-        echo Model llama3:latest is ready.
+        echo Model qwen2.5:14b is ready.
     )
     echo.
 )
