@@ -851,6 +851,8 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
           <span style="color:#ddd">|</span>
           <button onclick="restartCurrentSession()" style="font-size:13px;color:#991b1b;border:none;background:none;padding:4px 0">Restart</button>
           <span style="color:#ddd">|</span>
+          <button id="btn-wrong-answers" onclick="showWrongAnswersSoFar()" style="font-size:13px;color:#d97706;border:none;background:none;padding:4px 0;display:none">📋 Wrong (<span id="wrong-count">0</span>)</button>
+          <span style="color:#ddd;display:none" id="sep-wrong-answers">|</span>
           <span style="font-size:12px;color:#999;display:flex;align-items:center;gap:4px">💾 <span id="auto-save-indicator">Auto-saving...</span></span>
       </div>
       <div class="spacer"></div>
@@ -1548,6 +1550,7 @@ async function restartCurrentSession() {
   session.idx = 0;
   session.correct = 0;
   session.wrongIds = [];
+  updateWrongAnswersButton();
   renderQuestion();
   saveCurrent();
   showToast('Session restarted');
@@ -1558,7 +1561,7 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
 }
 
-function showQuiz() { showScreen('screen-quiz'); renderQuestion(); }
+function showQuiz() { showScreen('screen-quiz'); updateWrongAnswersButton(); renderQuestion(); }
 function goHome() { saveCurrent(); showScreen('screen-home'); renderSaveSlots(); }
 
 async function saveCurrent() {
@@ -1717,7 +1720,7 @@ async function submitAnswer() {
     const result = await resp.json();
     answered = true;
     if (result.verdict === 'CORRECT') session.correct++;
-    else if (result.verdict !== 'PARTIAL') { if (!session.wrongIds.includes(session.idx)) session.wrongIds.push(session.idx); }
+    else if (result.verdict !== 'PARTIAL') { if (!session.wrongIds.includes(session.idx)) session.wrongIds.push(session.idx); updateWrongAnswersButton(); }
     const type = result.verdict === 'CORRECT' ? 'success' : result.verdict === 'PARTIAL' ? 'warning' : 'danger';
     const label = result.verdict === 'CORRECT' ? 'Correct!' : result.verdict === 'PARTIAL' ? 'Partially correct' : 'Incorrect';
     showFeedback(type, label, result.feedback, q.answer);
@@ -1771,6 +1774,55 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function showWrongAnswersSoFar() {
+  if (session.wrongIds.length === 0) {
+    openModal('No wrong answers yet', '<p style="text-align:center;color:#666">You\'re doing great! No incorrect answers so far.</p>');
+    return;
+  }
+
+  const typeLabels = {mc:'MC', tf:'T/F', fte:'Find the Error', aw:'Algorithm', sa:'Short Answer'};
+  const wrongHTML = session.wrongIds.map((id, idx) => {
+    const q = session.questions[id];
+    const firstLine = q.q.split('\n')[0].substring(0, 80);
+    return `
+      <div class="wrong-item" style="margin-bottom:12px;padding:10px;background:#f9fafb;border-left:3px solid #ef4444;border-radius:4px">
+        <div style="font-size:12px;color:#999;margin-bottom:4px">
+          <span class="tag">Ch ${q.ch} · ${typeLabels[q.type] || q.type}</span>
+        </div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:6px">${escapeHtml(firstLine)}</div>
+        <div style="font-size:12px;padding:6px;background:#fef3c7;border-radius:3px;color:#333">
+          <strong style="color:#92400e">Correct answer:</strong> ${escapeHtml(q.answer.substring(0, 100))}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  openModal('Questions Marked Wrong', `
+    <div style="font-size:13px;color:#666;margin-bottom:12px">
+      You've marked <strong>${session.wrongIds.length}</strong> question(s) as incorrect so far.
+    </div>
+    <div style="max-height:400px;overflow-y:auto">
+      ${wrongHTML}
+    </div>
+  `);
+}
+
+function updateWrongAnswersButton() {
+  const btn = document.getElementById('btn-wrong-answers');
+  const sep = document.getElementById('sep-wrong-answers');
+  const count = document.getElementById('wrong-count');
+  if (btn) {
+    if (session.wrongIds.length > 0) {
+      btn.style.display = 'inline-block';
+      sep.style.display = 'inline';
+      count.textContent = session.wrongIds.length;
+    } else {
+      btn.style.display = 'none';
+      sep.style.display = 'none';
+    }
+  }
 }
 
 function nextQuestion() {
